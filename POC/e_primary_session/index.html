@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>POC — Primary Device Coaching (Chakrasana)</title>
+<style>
+:root{--ink:#1a1f16;--paper:#f3f1ea;--olive:#4a5d23;--saffron:#d97b06;--line:#d8d2c0;--card:#fffdf6}
+*{box-sizing:border-box}body{margin:0;font-family:Georgia,serif;background:var(--paper);color:var(--ink)}
+header{padding:16px 20px;border-bottom:2px solid var(--ink);display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px}
+header h1{font-size:22px;margin:0} .tag{font-family:monospace;font-size:12px;background:var(--ink);color:#fff;padding:3px 8px;border-radius:3px}
+main{max-width:1100px;margin:0 auto;padding:18px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:16px;margin-bottom:14px}
+button{background:var(--olive);color:#fff;border:0;padding:10px 16px;border-radius:4px;font-size:15px;cursor:pointer}
+button.secondary{background:#fff;color:var(--ink);border:1px solid var(--ink)} button:disabled{opacity:.45}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:760px){.grid{grid-template-columns:1fr}}
+video,img.ref{width:100%;aspect-ratio:4/3;object-fit:cover;background:#222;border-radius:4px}
+ol.steps li{padding:6px 8px} ol.steps li.now{background:#f7e3b0;font-weight:bold;border-radius:3px}
+.thumbs{display:flex;gap:6px;flex-wrap:wrap}.thumbs img{width:90px;height:68px;object-fit:cover;border-radius:3px;border:1px solid var(--line)}
+#log{font-family:monospace;font-size:12px;white-space:pre-wrap;max-height:180px;overflow:auto;background:#1a1f16;color:#cfe3a8;padding:10px;border-radius:4px}
+.warn{border-left:4px solid var(--saffron);padding-left:10px}
+</style></head><body>
+<header><h1>Primary-device coaching POC</h1><span class="tag">POC e + g + f · single device · multi-device later</span></header>
+<main>
+<div class="panel warn" id="disclaimer"><strong>Health disclaimer (mandatory, scope 13.4)</strong>
+<p>Consult a doctor where appropriate. Respect this asana's contraindications. Stop if there is pain. This POC is not medical advice.</p>
+<label><input type="checkbox" id="ack"> I understand and wish to continue</label></div>
+
+<div class="panel"><button id="start" disabled>Start Chakrasana session (Primary alone)</button>
+<button id="dl" class="secondary" disabled>Download captures for POC-f validation</button>
+<span id="status"> Camera: not started. Photos stay in memory only — never uploaded/stored by this page.</span></div>
+
+<div class="grid">
+<div class="panel"><h3>Your camera (Primary)</h3><video id="cam" autoplay playsinline muted></video><div class="thumbs" id="thumbs"></div></div>
+<div class="panel"><h3>Stored reference — <span id="stepLabel">Step 1</span></h3><img class="ref" id="ref" src="/assets/asanas/public/chakrasana/chakrasana_step_1.png" alt="reference step"></div>
+</div>
+<div class="panel"><h3>Steps</h3><ol class="steps" id="steps"></ol><div id="log">Log ready.</div></div>
+</main>
+<script>
+const INSTRUCTIONS=[ /* filled from step txt at runtime, fallback below */ ];
+let stepsTxt=["Lie on your back with knees bent and feet flat on the mat, hip-width apart. Keep feet parallel and close to your buttocks. Arms rest relaxed by your sides, palms down.",
+"Place hands beside shoulders and lift hips up. Bend elbows, place palms flat beside shoulders, fingers pointing toward feet. Press through feet and hands to lift hips.",
+"Straighten arms to lift into the full wheel pose. Straighten arms, lift head off the mat. Lift hips and chest high into a smooth arch."];
+const $=id=>document.getElementById(id), captures=[]; // {step, blobUrl} in-memory only
+function log(m){$("log").textContent+=`\n${new Date().toLocaleTimeString()} ${m}`; $("log").scrollTop=1e9}
+function speak(text){return new Promise(res=>{ const u=new SpeechSynthesisUtterance(text); u.rate=0.95; u.onend=res; u.onerror=res; speechSynthesis.speak(u); log("TTS: "+text); });}
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+$("ack").onchange=e=>$("start").disabled=!e.target.checked;
+$("steps").innerHTML=stepsTxt.map((t,i)=>`<li id="s${i+1}">Step ${i+1} — ${t}</li>`).join("");
+async function capture(step){
+  const v=$("cam"), c=document.createElement("canvas"); c.width=v.videoWidth||640; c.height=v.videoHeight||480;
+  c.getContext("2d").drawImage(v,0,0,c.width,c.height);
+  const url=await new Promise(r=>c.toBlob(b=>r(URL.createObjectURL(b)),"image/png"));
+  captures.push({step,url}); const im=document.createElement("img"); im.src=url; im.title=`Step ${step} capture`; $("thumbs").appendChild(im);
+  log(`Captured step ${step} (${captures.filter(x=>x.step===step).length}/3)`);
+}
+$("start").onclick=async()=>{
+  $("start").disabled=true;
+  try{ const s=await navigator.mediaDevices.getUserMedia({video:true,audio:false}); $("cam").srcObject=s; log("Camera started (primary alone). Secondary slots: not connected — multi-device phase later."); }
+  catch(e){ log("Camera denied/unavailable: "+e.message+" — coaching/TTS script will still run."); }
+  if(!("speechSynthesis" in window)) log("TTS: speechSynthesis NOT available in this browser.");
+  for(let n=1;n<=3;n++){
+    document.querySelectorAll("ol.steps li").forEach(li=>li.classList.remove("now")); $("s"+n).classList.add("now");
+    $("ref").src=`/assets/asanas/public/chakrasana/chakrasana_step_${n}.png`; $("stepLabel").textContent="Step "+n;
+    await speak(`Step ${n}`); await speak(stepsTxt[n-1]);
+    for(let k=1;k<=3;k++){
+      await speak("Get ready"); for(const c of ["1","2","3"]){ await speak(c); if(c!=="3") await wait(1000); } // scope: 1s gap, capture on 3
+      await capture(n); if(k<3) await wait(3000); // hold 3s between captures
+    }
+    if(n<3) await speak("Move to the next step");
+  }
+  await speak("Analyzing, please wait.");
+  log("Session complete. Validation (POC-f) runs via run_f.py on downloaded captures — photos are not stored by this app.");
+  $("dl").disabled=captures.length===0;
+};
+$("dl").onclick=()=>{ captures.forEach((c,i)=>{ const a=document.createElement("a"); a.href=c.url; a.download=`capture_step${c.step}_${i+1}.png`; a.click(); }); };
+</script></body></html>

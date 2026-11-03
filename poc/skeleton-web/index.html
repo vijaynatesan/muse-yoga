@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skeleton POC (one camera)</title>
+<style>
+  :root { --sage:#2F5D43; --ink:#1d2a22; --bg:#f4f6f3; --warn:#b3541e; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:12px 16px; display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  h1 { font-size:18px; margin:0 12px 0 0; color:var(--sage); }
+  button, select { font:inherit; padding:8px 14px; border-radius:999px; border:1px solid var(--sage); background:#fff; color:var(--sage); cursor:pointer; }
+  button.primary { background:var(--sage); color:#fff; }
+  label { display:flex; gap:6px; align-items:center; font-size:14px; }
+  main { display:grid; grid-template-columns: minmax(0,1fr) 260px; gap:16px; padding:0 16px 16px; }
+  @media (max-width:760px){ main{ grid-template-columns:1fr; } }
+  .stage { position:relative; background:#fff; border:1px solid #d5dcd6; border-radius:14px; overflow:hidden; aspect-ratio: 4/3; }
+  canvas { width:100%; height:100%; display:block; background:#fff; }
+  /* The camera <video> is decoded but NEVER shown. */
+  video { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
+  #banner { position:absolute; left:0; right:0; top:0; padding:8px 12px; text-align:center; font-size:15px; color:#fff; background:var(--warn); display:none; }
+  #banner.ok { background:var(--sage); }
+  aside { background:#fff; border:1px solid #d5dcd6; border-radius:14px; padding:12px 14px; font-size:14px; }
+  aside h2 { font-size:14px; margin:0 0 6px; color:var(--sage); }
+  table { width:100%; border-collapse:collapse; margin-bottom:12px; }
+  td { padding:2px 0; } td:last-child { text-align:right; font-variant-numeric: tabular-nums; }
+  .muted { color:#6b786f; font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Skeleton POC · one camera</h1>
+  <button id="start" class="primary">Start camera</button>
+  <button id="stop" disabled>Stop</button>
+  <select id="cam" title="Camera"></select>
+  <label><input type="checkbox" id="mirror" checked> Mirror</label>
+  <label>Smoothing <input type="range" id="smooth" min="0" max="0.9" step="0.05" value="0.5"></label>
+  <label><input type="checkbox" id="dots" checked> Joints</label>
+</header>
+<main>
+  <div class="stage">
+    <canvas id="c" width="640" height="480"></canvas>
+    <video id="v" playsinline muted></video>
+    <div id="banner"></div>
+  </div>
+  <aside>
+    <h2>Status</h2>
+    <table>
+      <tr><td>Model</td><td id="s-model">loading…</td></tr>
+      <tr><td>Delegate</td><td id="s-del">–</td></tr>
+      <tr><td>Camera</td><td id="s-res">–</td></tr>
+      <tr><td>FPS</td><td id="s-fps">–</td></tr>
+      <tr><td>Inference</td><td id="s-ms">–</td></tr>
+      <tr><td>In frame</td><td id="s-frame">–</td></tr>
+    </table>
+    <h2>Joint angles (2D)</h2>
+    <table id="angles"></table>
+    <p class="muted">Video is processed in memory on this device and never drawn, recorded or uploaded. Angles are 2D projections from a single camera — limbs pointing at the camera read wrong.</p>
+  </aside>
+</main>
+<script type="module">
+import { createPose } from "./pose.js";
+import { drawSkeleton } from "./draw.js";
+
+const $ = (id) => document.getElementById(id);
+const video = $("v"), canvas = $("c"), ctx = canvas.getContext("2d");
+const banner = $("banner");
+const params = new URLSearchParams(location.search);
+const T = (window.__pose = { frames: 0, detected: 0, fps: 0, err: null, last: null });
+
+let pose = null, stream = null, running = false, lastTs = -1;
+
+function say(el, t) { $(el).textContent = t; }
+function blank(msg) {
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (msg) { ctx.fillStyle = "#6b786f"; ctx.font = "18px system-ui"; ctx.textAlign = "center"; ctx.fillText(msg, canvas.width / 2, canvas.height / 2); }
+}
+blank("Press “Start camera”");
+
+(async () => {
+  try {
+    pose = await createPose({ model: `./models/pose_landmarker_${params.get("model") || "lite"}.task`, delegate: params.get("delegate") === "CPU" ? "CPU" : "GPU" });
+    say("s-model", "BlazePose lite"); say("s-del", pose.delegate);
+    T.ready = true;
+  } catch (e) { T.err = String(e); say("s-model", "FAILED"); console.error(e); }
+})();
+
+async function listCams() {
+  const devs = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "videoinput");
+  $("cam").innerHTML = devs.map((d, i) => `<option value="${d.deviceId}">${d.label || "Camera " + (i + 1)}</option>`).join("");
+}
+
+async function start() {
+  if (!pose) { banner.style.display = "block"; banner.textContent = "Model still loading…"; return; }
+  if (params.get("video")) {            // test-only: drive the same pipeline from a file
+    video.src = params.get("video"); video.loop = true; await video.play();
+  } else try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { deviceId: $("cam").value ? { exact: $("cam").value } : undefined, width: { ideal: 640 }, height: { ideal: 480 } },
+      audio: false,
+    });
+  } catch (e) { T.err = String(e); banner.style.display = "block"; banner.className = ""; banner.textContent = "Camera unavailable: " + e.name; return; }
+  if (stream) { video.srcObject = stream; await video.play(); await listCams(); }
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  say("s-res", `${video.videoWidth}×${video.videoHeight}`);
+  pose.reset(); running = true; lastTs = -1;
+  $("start").disabled = true; $("stop").disabled = false;
+  requestAnimationFrame(loop);
+}
+function stop() {
+  running = false; stream?.getTracks().forEach((t) => t.stop()); stream = null; video.srcObject = null;
+  $("start").disabled = false; $("stop").disabled = true; banner.style.display = "none"; blank("Stopped");
+}
+$("start").onclick = start; $("stop").onclick = stop;
+
+let fpsT = performance.now(), fpsN = 0;
+function loop() {
+  if (!running) return;
+  if (video.readyState >= 2 && video.currentTime !== lastTs) {
+    lastTs = video.currentTime;
+    const t0 = performance.now();
+    const res = pose.detect(video, t0, canvas.width, canvas.height, +$("smooth").value);
+    const ms = performance.now() - t0;
+    draw(res);
+    T.frames++; if (res) T.detected++; T.last = res && { angles: res.angles, inFrame: res.inFrame, n: res.pts.length };
+    say("s-ms", ms.toFixed(0) + " ms");
+    if (++fpsN === 15) { T.fps = +(15000 / (performance.now() - fpsT)).toFixed(1); say("s-fps", T.fps); fpsT = performance.now(); fpsN = 0; }
+  }
+  requestAnimationFrame(loop);
+}
+
+function draw(res) {
+  const w = canvas.width, h = canvas.height;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, w, h);          // plain white — no person, no background
+  if (!res) { banner.style.display = "block"; banner.className = ""; banner.textContent = "No person detected"; say("s-frame", "–"); $("angles").innerHTML = ""; return; }
+  drawSkeleton(ctx, res.pts, { mirror: $("mirror").checked, dots: $("dots").checked });
+  banner.style.display = "block";
+  banner.className = res.inFrame ? "ok" : "";
+  banner.textContent = res.inFrame ? "Fully in frame" : "Step back — can't see: " + res.missing.join(", ");
+  say("s-frame", res.inFrame ? "yes" : "no");
+  $("angles").innerHTML = Object.entries(res.angles).map(([k, v]) => `<tr><td>${k}</td><td>${v == null ? "–" : v + "°"}</td></tr>`).join("");
+}
+
+navigator.mediaDevices?.enumerateDevices && listCams();
+if (params.get("auto")) setTimeout(function w() { pose ? start() : setTimeout(w, 200); }, 100);
+</script>
+</body>
+</html>

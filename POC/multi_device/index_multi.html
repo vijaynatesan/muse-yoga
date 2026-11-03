@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>POC Multi-Device — Chakrasana</title>
+<style>
+:root{--ink:#1a1f16;--paper:#f3f1ea;--olive:#4a5d23;--saffron:#d97b06;--line:#d8d2c0;--card:#fffdf6}
+*{box-sizing:border-box}body{margin:0;font-family:Georgia,serif;background:var(--paper);color:var(--ink)}
+header{padding:14px 18px;border-bottom:2px solid var(--ink);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+h1{font-size:20px;margin:0}.tag{font-family:monospace;font-size:11px;background:var(--ink);color:#fff;padding:3px 8px;border-radius:3px}
+main{max-width:1100px;margin:0 auto;padding:16px}.panel{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:14px;margin-bottom:12px}
+button{background:var(--olive);color:#fff;border:0;padding:9px 14px;border-radius:4px;cursor:pointer;font-size:14px}
+button.sec{background:#fff;color:var(--ink);border:1px solid var(--ink)}button:disabled{opacity:.4}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:760px){.grid{grid-template-columns:1fr}}
+video,img.ref{width:100%;aspect-ratio:4/3;object-fit:cover;background:#222;border-radius:4px}
+.thumbs{display:flex;gap:6px;flex-wrap:wrap}.thumbs figure{margin:0}.thumbs img{width:110px;height:82px;object-fit:cover;border-radius:3px;border:1px solid var(--line)}.thumbs figcaption{font-size:11px;font-family:monospace}
+#log{font-family:monospace;font-size:12px;white-space:pre-wrap;max-height:170px;overflow:auto;background:#1a1f16;color:#cfe3a8;padding:10px;border-radius:4px}
+ol li.now{background:#f7e3b0;font-weight:bold} .prim{color:var(--olive);font-weight:bold}
+</style></head><body>
+<header><h1>Multi-device POC — Chakrasana</h1><span class="tag" id="roleTag">not joined</span></header>
+<main>
+<div class="panel">
+ <input id="name" placeholder="Device name (e.g. Laptop-Primary)" style="padding:9px;width:230px">
+ <button id="join">Join session</button>
+ <button id="makePrimary" class="sec" disabled>Make this device Primary</button>
+ <span id="conn">WebSocket: —</span>
+</div>
+<div class="panel"><strong>Devices</strong><ul id="devices"></ul>
+<div id="primaryControls" style="display:none">
+ <button id="prevStep" class="sec">&larr; Step</button> <button id="nextStep" class="sec">Step &rarr;</button>
+ <button id="captureNow">Capture all devices now</button>
+ <button id="autoRun">Run auto session (TTS + 3 captures/step)</button>
+</div></div>
+<div class="grid">
+<div class="panel"><h3>Your camera</h3><video id="cam" autoplay playsinline muted></video>
+<p><button id="enableCam">Enable camera</button> <span id="camStatus">Camera: not requested yet. If no prompt appeared, click Enable camera. If still blocked, check the camera icon in the browser address bar and allow camera for this site.</span></p></div>
+<div class="panel"><h3>Stored reference — <span id="stepLabel">Step 1</span></h3><img class="ref" id="ref" src="/assets/asanas/public/chakrasana/chakrasana_step_1.png"></div>
+</div>
+<div class="panel"><h3>Captures (all angles, in-memory only)</h3><div class="thumbs" id="thumbs"></div></div>
+<div class="panel"><ol id="steps"></ol><div id="log">Ready. Join on each device with the same page.</div></div>
+</main>
+<script>
+const txt=["Lie on your back, knees bent, feet flat hip-width apart, arms by your sides.",
+"Bend elbows, palms flat beside your ears, fingers pointing toward shoulders.",
+"Press through feet and hands, lift hips and chest into the wheel pose."];
+let ws,myId=null,primaryId=null,step=1,offsetMs=0,cameraReady=false;
+const $=i=>document.getElementById(i), wait=ms=>new Promise(r=>setTimeout(r,ms));
+function log(m){$("log").textContent+=`\n${new Date().toLocaleTimeString()} ${m}`;$("log").scrollTop=1e9}
+function isPrimary(){return myId&&myId===primaryId}
+function speak(t){ if(!isPrimary())return Promise.resolve(); return new Promise(res=>{const u=new SpeechSynthesisUtterance(t);u.onend=res;u.onerror=res;speechSynthesis.speak(u);log("TTS: "+t)}) }
+$("steps").innerHTML=txt.map((t,i)=>`<li id="s${i+1}">Step ${i+1} — ${t}</li>`).join("");
+function showStep(n){step=n;$("stepLabel").textContent="Step "+n;$("ref").src=`/assets/asanas/public/chakrasana/chakrasana_step_${n}.png`;
+ document.querySelectorAll("ol li").forEach(li=>li.classList.remove("now"));$("s"+n)?.classList.add("now");log("Showing step "+n)}
+async function syncClock(){ const c=Date.now(); ws.send(JSON.stringify({type:"sync",client_ms:c})); }
+async function doJoin(){
+ if(ws&&ws.readyState===1){log("Already joined");return}
+ const proto=location.protocol==="https:"?"wss:":"ws:";
+ ws=new WebSocket(`${proto}//${location.host}/ws`);
+ ws.onopen=async()=>{ $("conn").textContent="WebSocket: connected"; ws.send(JSON.stringify({type:"join",name:$("name").value||("device-"+Math.floor(Math.random()*99))}));
+   startCamera(); setInterval(syncClock,5000); };
+ ws.onmessage=async ev=>{ const m=JSON.parse(ev.data);
+  if(m.type==="welcome"){myId=m.id;offsetMs=m.server_ms-Date.now();log("Joined as "+myId)}
+  if(m.type==="sync_reply"){offsetMs=m.server_ms-Date.now();}
+  if(m.type==="state"){primaryId=m.primary_id;showStepSilent(m.step);
+    $("devices").innerHTML=m.devices.map(d=>`<li>${d.name} — <span class="${d.role==="primary"?"prim":""}">${d.role}</span>${d.id===myId?" (you)":""}</li>`).join("");
+    $("roleTag").textContent=!primaryId?"NO PRIMARY YET — tap 'Make this device Primary' on ONE device":isPrimary()?"PRIMARY (audio on)":"SECONDARY (camera only, muted)";$("roleTag").style.background=!primaryId?"#b00":"";$("makePrimary").disabled=!myId||isPrimary();$("primaryControls").style.display=isPrimary()?"block":"none";}
+  if(m.type==="primary_changed"){log(m.name+" is now Primary; others are Secondary"); if(isPrimary())speak("This device is now the primary device");}
+  if(m.type==="step"){showStep(m.step)}
+  if(m.type==="device_offline"){log("OFFLINE: "+m.name); if(isPrimary())speak(`A device has gone offline: ${m.name}`);}
+  if(m.type==="capture_at"){ const targetServerMs=m.capture_at_ms; const delay=Math.max(0,(targetServerMs-offsetMs)-Date.now());
+    log(`Capture step ${m.step} #${m.index} scheduled in ${delay}ms`); setTimeout(()=>doCapture(m),delay); }
+  if(m.type==="capture_image"){ addThumb(m.image,m.name+" step "+m.step); }
+  if(m.type==="capture_done"){log(m.name+" captured step "+m.step)}
+ };
+ ws.onclose=()=>{$("conn").textContent="WebSocket: DISCONNECTED";log("You disconnected")};
+}
+async function startCamera(){
+ if(cameraReady){$("camStatus").textContent="Camera: ON";return}
+ if(!navigator.mediaDevices?.getUserMedia){$("camStatus").textContent="Camera: NOT AVAILABLE — browser says this page is not a secure context. Open the https:// URL, accept the certificate, then click Enable camera.";log("getUserMedia unavailable: insecure context or unsupported browser");return}
+ $("camStatus").textContent="Camera: requesting permission…";
+ try{const s=await navigator.mediaDevices.getUserMedia({video:true});$("cam").srcObject=s;cameraReady=true;$("camStatus").textContent="Camera: ON";log("Camera on")}
+ catch(e){$("camStatus").textContent="Camera: BLOCKED ("+e.name+": "+e.message+"). Click the camera/lock icon in the address bar, allow Camera for this site, then click Enable camera again.";log("Camera unavailable: "+e.name+" "+e.message)}
+}
+$("enableCam").onclick=startCamera;
+$("join").onclick=doJoin;
+// Auto-join on page load: opening the page is joining the session (name editable before refresh/rejoin).
+if(!$("name").value) $("name").value=(navigator.platform||"Device")+"-"+Math.floor(100+Math.random()*899);
+log("Auto-joining as "+$("name").value+" — if the other device is missing, check both pages show 'WebSocket: connected'.");
+doJoin();
+function showStepSilent(n){ if(n!==step) showStep(n); }
+function addThumb(url,label){const f=document.createElement("figure");f.innerHTML=`<img src="${url}"><figcaption>${label}</figcaption>`;$("thumbs").appendChild(f)}
+async function doCapture(m){
+ let url=null,capturedAt=Date.now()+offsetMs;
+ if(cameraReady&&$("cam").videoWidth){const c=document.createElement("canvas");c.width=640;c.height=Math.round(640*$("cam").videoHeight/$("cam").videoWidth)||480;
+  c.getContext("2d").drawImage($("cam"),0,0,c.width,c.height);url=c.toDataURL("image/jpeg",0.6);capturedAt=Date.now()+offsetMs;addThumb(url,"you step "+m.step);}
+ log(`Captured step ${m.step} at server-time ${capturedAt}`);
+ ws.send(JSON.stringify({type:"capture_report",capture_id:m.capture_id,server_capture_ms:capturedAt}));
+ if(url) ws.send(JSON.stringify({type:"capture_image",step:m.step,image:url}));
+}
+$("makePrimary").onclick=()=>ws.send(JSON.stringify({type:"make_primary"}));
+$("nextStep").onclick=()=>ws.send(JSON.stringify({type:"step",step:Math.min(3,step+1)}));
+$("prevStep").onclick=()=>ws.send(JSON.stringify({type:"step",step:Math.max(1,step-1)}));
+$("captureNow").onclick=()=>ws.send(JSON.stringify({type:"capture_request",index:1}));
+$("autoRun").onclick=async()=>{ if(!isPrimary())return;
+ for(let n=1;n<=3;n++){ ws.send(JSON.stringify({type:"step",step:n})); await speak(`Step ${n}`); await speak(txt[n-1]);
+  for(let k=1;k<=3;k++){ await speak("Get ready"); for(const c of ["1","2","3"]){await speak(c); if(c!=="3")await wait(700);} ws.send(JSON.stringify({type:"capture_request",index:k})); if(k<3)await wait(2400);} 
+  if(n<3)await speak("Move to the next step"); }
+ await speak("Analyzing, please wait."); log("Auto session complete — check server sync_log for capture spread"); };
+</script></body></html>

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chakrasana — Step 2 · Coaching v5</title>
+<!--
+  V4 — OWNER-DECIDED GLANCE RULES (2026-10-30):
+  1) Equal split in pose: own camera | reference, same size, side by side.
+  2) No-scroll is HARD everywhere (future screens must paginate, not scroll).
+  3) Stay minimal between steps too — the in-pose layout never fattens up.
+  First-principles budget, glanceable at 2–3 m in <1 s while in a complex pose:
+  KEEP: own body (equal half), target shape (equal half), giant count,
+        in-frame status per camera, current step, one short instruction line.
+  DEMOTE: secondary cameras -> small strip (validation angles; on warning the
+        offending camera replaces the own-camera half and enlarges).
+  REMOVE from stage: cards, long text, privacy paragraph (one icon-line only),
+        device lists, app navigation. v1 stacked+scrolled; v2 shrank/hid to fit.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#223129; --paper:#F5F8F3; --deep:#2F5D43;
+    --clay:#C07A4A; --amber:#E9C46A; --amber-ink:#3D2E05; --red:#E4573D;
+    --glass:rgba(11,22,15,.86); --line:rgba(255,255,255,.34);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{font-family:"Outfit",system-ui,-apple-system,sans-serif;background:#14231A;color:#fff;height:100dvh;overflow:hidden}
+  .display{font-family:"Fraunces",Georgia,serif;font-weight:600}
+  button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+  .app{height:100dvh;display:flex;flex-direction:column}
+
+  /* slim status strip — context only */
+  .strip{position:relative;flex:none;display:flex;align-items:center;gap:14px;padding:9px 16px;background:var(--paper);color:var(--ink)}
+  .appname{font-size:20px;font-weight:600;letter-spacing:.015em;color:var(--deep);white-space:nowrap}
+  .asana-title{position:absolute;left:50%;transform:translateX(-50%);text-align:center;white-space:nowrap}
+  @media (max-width:900px){.asana-title{position:static;transform:none;text-align:left}.asana-title .meta{display:none}}
+  .strip .mark{width:31px;height:31px;border-radius:9px;background:var(--deep);color:#EAF3EC;display:grid;place-items:center;flex:none}
+  .strip h1{font-size:19px;line-height:1}
+  .strip .meta{font-size:12px;color:#3E5744;font-weight:700;margin-top:2px}
+  .spacer{flex:1}
+  .steps{display:flex;gap:6px;align-items:center}
+  .steps .s{display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:800;color:#2F4A37;padding:5px 10px;border-radius:999px;background:#DCE8D8;border:1px solid #C4D6C2}
+  .steps .s .n{width:18px;height:18px;border-radius:50%;background:#fff;color:#2F4A37;display:grid;place-items:center;font-size:11px}
+  .steps .done .n{background:var(--deep);color:#fff}
+  .steps .now{background:var(--deep);color:#fff}.steps .now .n{background:#fff;color:var(--deep)}
+  .pill{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;font-size:12.5px;font-weight:800;background:#DCE8D8;border:1px solid #C4D6C2;color:#2F4A37}
+  .pill.primary{background:var(--deep);color:#fff}.pill i{width:8px;height:8px;border-radius:50%;background:#8FD0A4}
+
+  /* EQUAL SPLIT STAGE */
+  .stage{position:relative;flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr}
+  .half{position:relative;overflow:hidden;min-width:0}
+  .half.cam{background:#2C4636}
+  .half.ref{background:#EDF2E9;color:var(--ink)}
+  .half svg.scene{position:absolute;inset:0;width:100%;height:100%}
+  .divider{position:absolute;top:0;bottom:0;left:50%;width:3px;background:rgba(255,255,255,.85);transform:translateX(-50%);z-index:3;box-shadow:0 0 0 1px rgba(20,35,26,.12)}
+  .flashfx{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:2}
+  .stage.go .flashfx{animation:fx .35s ease}
+  @keyframes fx{25%{opacity:.65}}
+  @media (prefers-reduced-motion:reduce){.stage.go .flashfx{animation:none}}
+
+  .tagrow{position:absolute;top:14px;left:14px;display:flex;gap:8px;z-index:4;flex-wrap:wrap}
+  .tag{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:999px;background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(7px);font-size:13.5px;font-weight:800;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.45)}
+  .tag.live b{width:8px;height:8px;border-radius:50%;background:#FF7A5C}
+  .tag.ok{color:#D9F6E0}.tag.bad{background:rgba(94,62,4,.94);color:#FFEFC0}
+
+  /* reference half: image fills, one-line caption pinned */
+  .refimg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+  .refcap{position:absolute;left:14px;right:14px;bottom:14px;z-index:4;background:rgba(255,255,255,.985);border:1px solid rgba(47,74,55,.16);border-radius:14px;padding:11px 15px;box-shadow:0 12px 28px rgba(20,35,26,.25)}
+  .refcap .lab{font-size:11.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#3E5744;display:flex;justify-content:space-between}
+  .refcap .lab em{font-style:normal;color:#8F4B1C;letter-spacing:0;text-transform:none;font-weight:800}
+  .refcap p{font-size:15.5px;font-weight:650;line-height:1.5;margin-top:4px;color:#1E3325}
+  .refcap p span{color:#3E5744;font-weight:600}
+
+  /* secondary strip: inside camera half, bottom, small by design */
+  .film{position:absolute;left:14px;bottom:14px;z-index:4;display:flex;gap:10px}
+  .thumb{width:138px;background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(6px);border-radius:13px;padding:7px}
+  .thumb .view{height:64px;border-radius:8px;background:#3C5A47;position:relative;overflow:hidden}
+  .thumb .view svg{position:absolute;inset:0;width:100%;height:100%}
+  .thumb .nm{display:flex;justify-content:space-between;font-size:11.5px;font-weight:700;margin-top:6px}
+  .thumb .nm{color:#fff;text-shadow:0 1px 5px rgba(0,0,0,.5)}
+  .thumb .nm span:last-child{color:#DCE9DC;font-weight:700}
+  .thumb .fr{font-size:11.5px;font-weight:800;margin-top:2px;color:#C9F2D2;text-shadow:0 1px 5px rgba(0,0,0,.5)}
+  .thumb.bad .fr{color:var(--amber)}
+  .thumb .sw{margin-top:6px;width:100%;padding:6px;border-radius:999px;border:1px solid var(--line);font-size:11.5px;font-weight:800;color:#fff;background:rgba(255,255,255,.2)}
+  .thumb .sw.queued{background:var(--amber);color:var(--amber-ink);border-color:var(--amber)}
+
+  /* count cluster straddles the split, bottom centre */
+  /* v6 fix: NO overlay box on the stage at all (v5's plate covered the
+     reference caption). The count gets its own full-width band BELOW the
+     split — nothing overlaps anything, and text sits on solid deep green. */
+  .focus{flex:none;display:flex;align-items:center;justify-content:center;gap:26px;background:#10201A;color:#fff;padding:8px 22px 10px;border-top:1px solid rgba(255,255,255,.14)}
+  .focus .stack{text-align:left}
+  .countlbl{font-size:13px;font-weight:800;letter-spacing:.24em;text-transform:uppercase;color:#FFE1A6}
+  .num{font-family:"Fraunces",Georgia,serif;font-size:clamp(54px,10vh,82px);line-height:1;color:#fff}
+  .pausedtxt{font-size:clamp(21px,3.6vh,30px);line-height:1.2}
+  .dots{display:flex;gap:9px;justify-content:flex-start;align-items:center;font-size:13.5px;font-weight:800;color:#fff;margin-top:5px}
+  .dots i{width:13px;height:13px;border-radius:50%;border:2.5px solid #D8EBDC}
+  .dots i.full{background:#fff;border-color:#fff}
+  .dots i.held{border-color:var(--amber);background:rgba(233,196,106,.4)}
+
+  .endbtn{position:absolute;right:14px;top:14px;z-index:6;padding:10px 17px;border-radius:999px;background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(6px);font-weight:700;font-size:13.5px}
+  .replay{position:absolute;left:14px;top:56px;z-index:6;padding:9px 15px;border-radius:999px;background:rgba(255,255,255,.94);color:var(--deep);font-weight:700;font-size:13px;box-shadow:0 8px 20px rgba(0,0,0,.25)}
+
+  /* warning takeover */
+  .banner{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:7;width:min(720px,94vw);display:none;background:var(--amber);color:var(--amber-ink);border-radius:17px;padding:15px 21px;box-shadow:0 18px 44px rgba(0,0,0,.42);text-align:center}
+  .banner.show{display:block}
+  .banner h2{font-size:clamp(24px,4.2vh,33px);line-height:1.1}
+  .banner p{font-size:15px;font-weight:600;line-height:1.5;margin-top:4px}
+
+  /* reviewer toggle — prototype furniture, floats over the split boundary top */
+  .review{position:absolute;left:50%;top:8px;transform:translateX(-50%);z-index:9;display:flex;gap:4px;align-items:center;background:rgba(18,30,22,.9);border:1px solid var(--line);border-radius:999px;padding:3px}
+  .review span{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#D7E7D8;padding:0 7px 0 10px}
+  .review button{padding:6px 13px;border-radius:999px;font-size:12.5px;font-weight:800;color:#EDF5EE}
+  .review button.on{background:#fff;color:var(--deep)}
+
+  @media (max-width:880px){
+    .thumb{width:112px}.thumb .view{height:52px}
+    .steps .s:nth-child(3),.steps .s:nth-child(4){display:none}
+    .refcap p{font-size:13.5px}
+  }
+  @media (max-height:680px){ .num{font-size:clamp(64px,16vh,104px)} .thumb .sw{display:none} .refcap{padding:8px 12px} }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="strip">
+    <div class="appname display">Muse Yoga</div>
+    <div class="asana-title"><h1 class="display">Chakrasana</h1><div class="meta">Wheel Pose · Advanced · Backbend</div></div>
+    <div class="spacer"></div>
+    <nav class="steps" aria-label="Steps">
+      <span class="s done"><span class="n">✓</span>1</span>
+      <span class="s now"><span class="n">2</span>Now</span>
+      <span class="s"><span class="n">3</span></span>
+      <span class="s"><span class="n">4</span></span>
+    </nav>
+    <span class="pill primary"><i></i>Primary</span>
+    <span class="pill">3 devices</span>
+  </header>
+
+  <main class="stage" id="stage">
+    <section class="half cam" aria-label="Your camera">
+      <svg class="scene" viewBox="0 0 720 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <rect width="720" height="900" fill="#2C4636"/>
+        <rect y="680" width="720" height="220" fill="#243A2D"/>
+        <rect x="100" y="660" width="520" height="30" rx="12" fill="#7FA38B" opacity=".45"/>
+        <ellipse cx="360" cy="330" rx="200" ry="230" fill="#FFFFFF" opacity=".06"/>
+        <g id="figure" stroke="#EAF3E8" stroke-width="13" stroke-linecap="round" fill="none">
+          <circle cx="360" cy="250" r="31" fill="#EAF3E8" stroke="none"/>
+          <path d="M360 288 C 334 398, 292 486, 226 570 M360 288 C 392 394, 436 480, 498 562"/>
+          <path d="M226 570 L168 668 M498 562 L558 654 M278 430 L196 380 M448 428 L532 372"/>
+        </g>
+      </svg>
+      <div class="tagrow">
+        <span class="tag live"><b></b><span id="camName">Your camera · Laptop</span></span>
+        <span class="tag ok" id="frameTag">✓ Fully in view</span>
+      </div>
+      <button class="replay" onclick="playCount()">▶ Replay count</button>
+
+      <aside class="film" aria-label="Other cameras">
+        <div class="thumb" id="thumbIphone">
+          <div class="view"><svg viewBox="0 0 300 150" preserveAspectRatio="xMidYMid slice"><rect width="300" height="150" fill="#3C5A47"/><g stroke="#DCE9DC" stroke-width="6" stroke-linecap="round" fill="none"><circle cx="150" cy="44" r="11" fill="#DCE9DC" stroke="none"/><path d="M150 58 C138 88 120 108 96 126 M150 58 C164 86 182 106 204 124"/></g></svg></div>
+          <div class="nm"><span>iPhone</span><span>Muted</span></div>
+          <div class="fr" id="iphoneFr">✓ In view</div>
+          <button class="sw" onclick="queueSwitch(this)">Make Primary</button>
+        </div>
+        <div class="thumb">
+          <div class="view"><svg viewBox="0 0 300 150" preserveAspectRatio="xMidYMid slice"><rect width="300" height="150" fill="#435C4B"/><g stroke="#E4EEE2" stroke-width="6" stroke-linecap="round" fill="none"><circle cx="148" cy="46" r="11" fill="#E4EEE2" stroke="none"/><path d="M148 60 C136 90 118 110 94 126 M148 60 C162 88 180 106 202 124"/></g></svg></div>
+          <div class="nm"><span>Laptop 2</span><span>Muted</span></div>
+          <div class="fr">✓ In view</div>
+          <button class="sw" onclick="queueSwitch(this)">Make Primary</button>
+        </div>
+      </aside>
+    </section>
+
+    <section class="half ref" aria-label="Reference pose">
+      <img class="refimg" src="../POC/outputs/b/final/step2.png" alt="Stored character reference for Chakrasana step 2">
+      <div class="refcap">
+        <div class="lab"><span>Reference · Step 2 of 4</span><em>Stored</em></div>
+        <p>Palms flat beside your ears, fingers toward shoulders. <span>Feet parallel, knees over ankles.</span></p>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <div class="review" aria-label="Prototype review state">
+      <span>Review</span>
+      <button class="on" id="tN" onclick="setWarn(false)">Coaching</button>
+      <button id="tW" onclick="setWarn(true)">Framing warning</button>
+    </div>
+
+    <div class="banner" id="banner" role="alert">
+      <h2 class="display">I can’t measure your pose</h2>
+      <p>Not fully in the <u>iPhone camera</u> — that camera now fills your half. Move so your whole body fits, then hold still. Counting restarts itself.</p>
+    </div>
+
+    <button class="endbtn">End session</button>
+
+  </main>
+
+  <div class="focus" aria-live="polite">
+    <div class="num" id="num">2</div>
+    <div class="stack">
+      <div class="countlbl" id="countLbl">Get ready</div>
+      <div class="dots"><i class="full"></i><i id="d2"></i><i></i><span id="dotTxt">Capture 1 of 3 · Step 2 spoken aloud</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var timer=null;
+  function queueSwitch(b){ b.textContent='Primary after this step ✓'; b.classList.add('queued'); b.disabled=true; }
+  function setWarn(w){
+    document.getElementById('tN').classList.toggle('on', !w);
+    document.getElementById('tW').classList.toggle('on', w);
+    document.getElementById('banner').classList.toggle('show', w);
+    var ft=document.getElementById('frameTag');
+    if(w){
+      document.getElementById('camName').textContent='iPhone camera · problem view';
+      ft.textContent='⚠ Not fully in view'; ft.classList.remove('ok'); ft.classList.add('bad');
+      document.getElementById('thumbIphone').classList.add('bad');
+      document.getElementById('iphoneFr').textContent='⚠ Not fully in view';
+      document.getElementById('figure').setAttribute('transform','translate(300,50)');
+      document.getElementById('countLbl').textContent='Paused';
+      document.getElementById('num').outerHTML='<div class="num pausedtxt" id="num">Hold still —<br>counting restarts itself</div>';
+      document.getElementById('dotTxt').textContent='Paused · no photo taken';
+      document.getElementById('d2').classList.add('held');
+      clearInterval(timer);
+    } else {
+      document.getElementById('camName').textContent='Your camera · Laptop';
+      ft.textContent='✓ Fully in view'; ft.classList.add('ok'); ft.classList.remove('bad');
+      document.getElementById('thumbIphone').classList.remove('bad');
+      document.getElementById('iphoneFr').textContent='✓ In view';
+      document.getElementById('figure').removeAttribute('transform');
+      document.getElementById('dotTxt').textContent='Capture 1 of 3 · Step 2 spoken aloud';
+      document.getElementById('d2').classList.remove('held');
+      var n=document.getElementById('num'); if(n.classList.contains('pausedtxt')) n.outerHTML='<div class="num" id="num">3</div>';
+      playCount();
+    }
+  }
+  function playCount(){
+    if(document.getElementById('banner').classList.contains('show')) return;
+    var el=document.getElementById('num');
+    if(el.classList.contains('pausedtxt')){ el.outerHTML='<div class="num" id="num">3</div>'; el=document.getElementById('num'); }
+    var n=3; document.getElementById('countLbl').textContent='Get ready'; el.textContent=n;
+    clearInterval(timer);
+    timer=setInterval(function(){
+      n--;
+      if(n<1){
+        clearInterval(timer); el.textContent='•'; document.getElementById('countLbl').textContent='Photo taken';
+        var st=document.getElementById('stage'); st.classList.remove('go'); void st.offsetWidth; st.classList.add('go');
+        setTimeout(function(){ document.getElementById('countLbl').textContent='Hold…'; document.getElementById('d2').classList.add('full'); document.getElementById('dotTxt').textContent='Capture 2 of 3 · Step 2 spoken aloud'; },430);
+        return;
+      }
+      el.textContent=n;
+    },900);
+  }
+  playCount();
+</script>
+</body>
+</html>

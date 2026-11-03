@@ -1,0 +1,13 @@
+import { chromium } from "playwright-core";
+const url = process.argv[2], out = process.argv[3];
+const b = await chromium.launch({ executablePath: process.env.CHROME, args: ["--use-fake-device-for-media-stream","--use-fake-ui-for-media-stream","--use-file-for-media-stream=" + process.argv[4]] });
+const ctx = await b.newContext({ permissions: ["camera"] });
+const p = await ctx.newPage();
+const errs = []; p.on("pageerror", e => errs.push(String(e))); p.on("console", m => { if (m.type()==="error"||m.type()==="warning") errs.push(m.text()); });
+await p.goto(url + "/index.html?auto=1&delegate=CPU&video=test/pose.webm");
+await p.waitForFunction(() => window.__pose?.frames > 30 || window.__pose?.err, null, { timeout: 90000 });
+await p.waitForTimeout(1500);
+const r = await p.evaluate(() => window.__pose);
+await p.locator(".stage").screenshot({ path: out });
+console.log(JSON.stringify({ ...r, errs }, null, 1));
+await b.close();

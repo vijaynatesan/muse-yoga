@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skeleton Fusion POC — two angles, one unified skeleton</title>
+<!--
+  STANDALONE POC (not part of the main app).
+  Each device runs pose tracking LOCALLY on its own camera (MediaPipe
+  PoseLandmarker, full-body 33 landmarks, via CDN). Nothing but landmark
+  coordinates ever leaves a device — no video is streamed or stored.
+  The Secondary sends its 3D world landmarks to the Primary ~10x/sec over a
+  public MQTT broker (needs internet on both machines, same as the CDN libs).
+  The Primary renders three white-background canvases: own angle, secondary
+  angle, and the UNIFIED skeleton (per-landmark average of the two devices'
+  world landmarks, visibility-gated). True metric 3D triangulation would need
+  calibrated camera extrinsics — this POC proves tracking + transport + merge.
+-->
+<style>
+  :root { --deep: #2F5D43; --ink: #223129; --line: #D8E2D4; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: system-ui, sans-serif; background: #fff; color: var(--ink); padding: 16px; max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 22px; color: var(--deep); }
+  p.sub { color: #555; font-size: 14px; margin: 4px 0 14px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 10px 0; }
+  button { padding: 10px 20px; border-radius: 999px; border: none; background: var(--deep); color: #fff; font-weight: 700; font-size: 15px; cursor: pointer; }
+  button.ghost { background: #fff; color: var(--deep); border: 1.5px solid var(--deep); }
+  input { padding: 10px 14px; border: 1.5px solid var(--line); border-radius: 12px; font-size: 16px; width: 160px; text-align: center; letter-spacing: 4px; }
+  .status { font-size: 14px; padding: 8px 12px; border-radius: 10px; background: #F2F6F0; }
+  .status b { color: var(--deep); }
+  .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .panel { border: 1.5px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .panel h3 { font-size: 14px; padding: 8px 12px; background: #F2F6F0; }
+  .panel canvas { width: 100%; height: 300px; display: block; background: #fff; }
+  .panel.wide { grid-column: 1 / -1; }
+  .panel.wide canvas { height: 380px; }
+  video#cam { display: none; }
+  .err { color: #B23B2C; font-weight: 700; }
+  @media (max-width: 700px) { .panels { grid-template-columns: 1fr; } }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<script type="module">
+  import { FilesetResolver, PoseLandmarker, DrawingUtils } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm";
+
+  const params = new URLSearchParams(location.search);
+  const sessionCode = (params.get("session") || "").replace(/[^0-9]/g, "").slice(0, 6);
+  const $ = (id) => document.getElementById(id);
+  const statusEl = $("status");
+
+  // BlazePose 33-landmark topology (local copy — no dependency on the
+  // vision package exposing a connections constant).
+  const POSE_CONNECTIONS = [[0,1],[1,2],[2,3],[3,7],[0,4],[4,5],[5,6],[6,8],[9,10],[11,12],[11,13],[13,15],[15,17],[15,19],[15,21],[17,19],[12,14],[14,16],[16,18],[16,20],[16,22],[18,20],[11,23],[12,24],[23,24],[23,25],[24,26],[25,27],[26,28],[27,29],[28,30],[29,31],[30,32],[27,31],[28,32]];
+
+  const state = {
+    role: null, landmarker: null, lastVideoTime: -1,
+    ownWorld: null,           // latest own world landmarks
+    secondaryWorld: null,     // latest secondary world landmarks (primary only)
+    secondarySeenAt: 0, mqtt: null, running: false,
+  };
+  const setStatus = (html) => { statusEl.innerHTML = html; };
+
+  // ---------- merge: per-landmark mean of the two world-landmark sets ----------
+  // A landmark contributes only when its visibility > 0.5 on that device;
+  // a landmark seen by one device alone is kept as-is (no fabrication).
+  function mergeLandmarks(a, b) {
+    const out = [];
+    for (let i = 0; i < 33; i++) {
+      const cand = [];
+      for (const set of [a, b]) {
+        const p = set && set[i];
+        if (p && (p.visibility ?? 0) > 0.5) cand.push(p);
+      }
+      if (!cand.length) { out.push(null); continue; }
+      out.push({
+        x: cand.reduce((s, p) => s + p.x, 0) / cand.length,
+        y: cand.reduce((s, p) => s + p.y, 0) / cand.length,
+        z: cand.reduce((s, p) => s + p.z, 0) / cand.length,
+        sources: cand.length,
+      });
+    }
+    return out;
+  }
+
+  // World landmarks are hip-centred metres; fit them onto the canvas.
+  function drawUnified(canvas, merged) {
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const pts = merged.map((p) => {
+      if (!p) return null;
+      return { x: (0.5 - p.x * 1.4) * canvas.width, y: (0.5 + p.y * 1.4) * canvas.height, oneSided: p.sources === 1 };
+    });
+    ctx.lineWidth = 4; ctx.lineCap = "round";
+    for (const [a, b] of POSE_CONNECTIONS) {
+      const p = pts[a], q = pts[b];
+      if (!p || !q) continue;
+      ctx.strokeStyle = (p.oneSided || q.oneSided) ? "#E67E22" : "#2F5D43";
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke();
+    }
+    ctx.fillStyle = "#2F5D43";
+    for (const p of pts) {
+      if (!p) continue;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.oneSided ? 4 : 6, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  function drawPanel(canvas, landmarks) {
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (!landmarks) return;
+    const du = new DrawingUtils(ctx);
+    du.drawConnectors(landmarks, POSE_CONNECTIONS, { color: "#2F5D43", lineWidth: 4 });
+    du.drawLandmarks(landmarks, { color: "#2F5D43", lineWidth: 2, radius: 4 });
+  }
+  const sizeCanvas = (c) => { const r = c.getBoundingClientRect(); c.width = Math.max(300, r.width); c.height = 300; };
+
+  // Test hooks (used by the headless verification run, harmless in real use).
+  window.__poc = { mergeLandmarks, drawUnified, state,
+    injectSecondary: (world) => { state.secondaryWorld = world; state.secondarySeenAt = Date.now(); renderAll(); } };
+
+  function renderAll() {
+    if (state.role !== "primary") return;
+    drawUnified($("cvUnified"), mergeLandmarks(state.ownWorld, state.secondaryWorld));
+    const age = state.secondaryWorld ? Math.round((Date.now() - state.secondarySeenAt) / 100) / 10 : -1;
+    setStatus(`Role: <b>Primary</b> · session <b>${sessionCode}</b> · secondary: <b>${age < 0 ? "waiting…" : age + "s ago"}</b>`);
+  }
+
+  // ---------- tracking loop (local camera, local inference) ----------
+  // A single bad frame must never kill the loop: inference is wrapped, and
+  // repeated failures trigger a rebuild with the CPU delegate (some devices
+  // report a GPU but cannot run inference on it).
+  let inferErrors = 0, switchingDelegate = false;
+  async function switchToCpu() {
+    if (switchingDelegate) return;
+    switchingDelegate = true;
+    try {
+      const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+      state.landmarker = await PoseLandmarker.createFromOptions(vision, {
+        baseOptions: { modelAssetPath: state.modelPath, delegate: "CPU" },
+        runningMode: "VIDEO", numPoses: 1,
+      });
+      inferErrors = 0;
+      setStatus(`Role: <b>${state.role}</b> · session <b>${sessionCode}</b> · tracking live (CPU)`);
+    } catch (e) { setStatus(`<span class="err">Pose tracking unavailable on this device (${e.message || e}).</span>`); state.running = false; }
+    switchingDelegate = false;
+  }
+  async function startTracking(video) {
+    const loop = () => {
+      requestAnimationFrame(loop); // reschedule first: this loop never dies
+      if (!state.running) return;
+      if (video.currentTime !== state.lastVideoTime && video.readyState >= 2) {
+        state.lastVideoTime = video.currentTime;
+        try {
+          const res = state.landmarker.detectForVideo(video, performance.now());
+          inferErrors = 0;
+          const lm = res.landmarks && res.landmarks[0];
+          state.ownWorld = (res.worldLandmarks && res.worldLandmarks[0]) || null;
+          if (state.role === "primary") {
+            drawPanel($("cvOwn"), lm);
+            renderAll();
+          } else {
+            drawPanel($("cvSec"), lm);
+          }
+        } catch (e) {
+          if (++inferErrors === 5) switchToCpu();
+          if (inferErrors > 60) { setStatus(`<span class="err">Pose tracking keeps failing on this device. Try another browser or device.</span>`); state.running = false; }
+        }
+      }
+    };
+    loop();
+  }
+
+  // ---------- networking: secondary -> primary landmark relay ----------
+  const BROKER = "wss://broker.emqx.io:8084/mqtt";
+  function topic(kind) { return `muse-skeleton-poc/${sessionCode}/${kind}`; }
+  const round3 = (n) => Math.round(Number(n) * 1000) / 1000;
+  const round2 = (n) => Math.round(Number(n) * 100) / 100;
+
+  function connectMqtt() {
+    return new Promise((resolve, reject) => {
+      const client = mqtt.connect(BROKER, { connectTimeout: 8000 });
+      const to = setTimeout(() => reject(new Error("broker unreachable — both machines need internet")), 9000);
+      client.on("connect", () => { clearTimeout(to); resolve(client); });
+      client.on("error", (e) => { clearTimeout(to); reject(e); });
+    });
+  }
+
+  let lastSent = 0;
+  function maybeSendSecondary() {
+    if (state.role !== "secondary" || !state.mqtt || !state.ownWorld) return;
+    const now = Date.now();
+    if (now - lastSent < 100) { setTimeout(maybeSendSecondary, 100); return; } // ~10 Hz
+    lastSent = now;
+    state.mqtt.publish(topic("landmarks"), JSON.stringify({
+      t: now,
+      // plain numbers only: toFixed() yields strings, which would corrupt
+      // the merge math on the receiving side (string concatenation).
+      world: state.ownWorld.map((p) => [round3(p.x), round3(p.y), round3(p.z), round2(p.visibility ?? 0)]),
+    }), { qos: 0 });
+    setTimeout(maybeSendSecondary, 100);
+  }
+
+  // ---------- boot ----------
+  async function boot(role) {
+    state.role = role;
+    $("setup").style.display = "none";
+    $(role === "primary" ? "primaryView" : "secondaryView").style.display = "block";
+    if (role === "primary") { ["cvOwn", "cvSecMirror", "cvUnified"].forEach((id) => sizeCanvas($(id))); $("cvUnified").height = 380; }
+    else sizeCanvas($("cvSec"));
+    try {
+      setStatus("Loading pose model…");
+      const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+      const modelPath = "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task";
+      state.modelPath = modelPath;
+      try {
+        state.landmarker = await PoseLandmarker.createFromOptions(vision, {
+          baseOptions: { modelAssetPath: modelPath, delegate: "GPU" },
+          runningMode: "VIDEO", numPoses: 1,
+        });
+      } catch {
+        // No usable GPU (headless machines, some phones) — fall back to CPU.
+        state.landmarker = await PoseLandmarker.createFromOptions(vision, {
+          baseOptions: { modelAssetPath: modelPath, delegate: "CPU" },
+          runningMode: "VIDEO", numPoses: 1,
+        });
+      }
+      setStatus("Opening camera… (tracking stays on this device)");
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640 }, audio: false });
+      const video = $("cam"); video.srcObject = stream; await video.play();
+      setStatus("Connecting… (landmarks relay)");
+      try {
+        state.mqtt = await connectMqtt();
+      } catch (e) {
+        setStatus(`<span class="err">Relay unreachable (${e.message}) — local skeleton still works; check internet and reload for the linked view.</span>`);
+      }
+      if (role === "primary" && state.mqtt) {
+        state.mqtt.subscribe(topic("landmarks"));
+        state.mqtt.on("message", (t, buf) => {
+          if (t !== topic("landmarks")) return;
+          try {
+            const m = JSON.parse(buf.toString());
+            state.secondaryWorld = m.world.map(([x, y, z, visibility]) => ({ x: Number(x), y: Number(y), z: Number(z), visibility: Number(visibility) }));
+            state.secondarySeenAt = Date.now();
+            // mirror panel: project the secondary's world x/y for display
+            // (DrawingUtils needs complete landmark objects)
+            try {
+              drawPanel($("cvSecMirror"), m.world.map(([x, y]) => ({ x: 0.5 + x, y: 0.5 + y, z: 0, visibility: 1 })));
+              state.mirrorDraws = (state.mirrorDraws || 0) + 1;
+            } catch (e) { state.mirrorError = String((e && e.message) || e); }
+          } catch {}
+        });
+      } else if (state.mqtt) {
+        maybeSendSecondary();
+      }
+      state.running = true;
+      setStatus(`Role: <b>${role}</b> · session <b>${sessionCode}</b> · tracking live`);
+      startTracking(video);
+    } catch (e) {
+      setStatus(`<span class="err">Could not start: ${e.message || e}. Camera + internet are both required.</span>`);
+    }
+  }
+
+  // ---------- role setup screen ----------
+  if (sessionCode) {
+    $("codeHint").textContent = `Session ${sessionCode} detected from the link — pick your role on each machine.`;
+  }
+  $("btnPrimary").onclick = () => {
+    const code = ($("codeInput").value || sessionCode || "").replace(/[^0-9]/g, "").slice(0, 6) || String(Math.floor(100000 + Math.random() * 900000));
+    location.search = `?role=primary&session=${code}`;
+  };
+  $("btnSecondary").onclick = () => {
+    const code = ($("codeInput").value || sessionCode || "").replace(/[^0-9]/g, "").slice(0, 6);
+    if (!code) { $("codeHint").textContent = "Enter the 6-digit session code shown on the Primary first."; return; }
+    location.search = `?role=secondary&session=${code}`;
+  };
+  const preRole = params.get("role");
+  if ((preRole === "primary" || preRole === "secondary") && sessionCode) boot(preRole);
+</script>
+</head>
+<body>
+  <h1>Skeleton Fusion POC</h1>
+  <p class="sub">Two camera angles → one unified skeleton on a plain white background. Only landmark coordinates travel between machines — never video.</p>
+  <video id="cam" playsinline muted></video>
+
+  <div id="setup">
+    <div class="row">
+      <button id="btnPrimary">I am Primary (laptop)</button>
+      <button id="btnSecondary" class="ghost">I am Secondary (phone)</button>
+    </div>
+    <div class="row">
+      <input id="codeInput" inputmode="numeric" placeholder="000000" maxlength="6">
+      <span class="status" id="codeHint">Primary: leave blank for a new code, then share the link (?role=primary&amp;session=CODE). Secondary: type the code here.</span>
+    </div>
+  </div>
+
+  <div class="status" id="status" style="margin-top:12px">Choose a role to begin.</div>
+
+  <div id="primaryView" style="display:none">
+    <div class="panels">
+      <div class="panel"><h3>Primary angle (this camera)</h3><canvas id="cvOwn"></canvas></div>
+      <div class="panel"><h3>Secondary angle (other camera)</h3><canvas id="cvSecMirror"></canvas></div>
+      <div class="panel wide"><h3>Unified skeleton — merged from both angles (orange = seen by one camera only)</h3><canvas id="cvUnified"></canvas></div>
+    </div>
+  </div>
+
+  <div id="secondaryView" style="display:none">
+    <div class="panels">
+      <div class="panel wide"><h3>This camera — sending landmarks to Primary (video never leaves this device)</h3><canvas id="cvSec"></canvas></div>
+    </div>
+  </div>
+</body>
+</html>

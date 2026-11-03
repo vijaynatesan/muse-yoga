@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design — Muse Yoga</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#EAF0E9;--surface:#fff;--soft:#F2F6F0;--ink:#223129;--ink2:#3E5744;--line:#D8E2D4;--deep:#2F5D43;--deep2:#24493A;--clay:#8F4B1C;--claybg:#FAEDE2;--amber:#6E5205;--amberbg:#FBF0D2;--red:#B23B2C;--redbg:#FBEAE6;--r:18px;--sh:0 10px 28px rgba(46,74,56,.09)}
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:"Outfit",system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.6}
+.display{font-family:"Fraunces",Georgia,serif;font-weight:600}.wrap{max-width:1020px;margin:0 auto;padding:28px 22px 64px}
+header.top,section,nav.toc{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh)}
+header.top{padding:30px 34px;margin-bottom:18px}header.top h1{font-size:34px;line-height:1.12;color:var(--deep2)}header.top p,section p,section li{color:var(--ink2)}
+nav.toc{padding:16px 22px;margin-bottom:18px;display:flex;gap:9px;flex-wrap:wrap;align-items:center}nav.toc a{color:var(--deep);font-weight:700;text-decoration:none;background:var(--soft);border:1px solid var(--line);padding:8px 13px;border-radius:999px;font-size:13.5px}
+section{padding:28px 32px;margin-bottom:18px}section h2{font-size:26px;color:var(--deep2);margin-bottom:8px}section h3{font-size:19px;color:var(--deep2);margin:20px 0 6px}section h4{font-size:16px;color:var(--deep2);margin:14px 0 4px}
+.chip{display:inline-block;padding:6px 12px;border-radius:999px;background:#DCE8D8;border:1px solid #C4D6C2;color:#2F4A37;font-size:12.5px;font-weight:800;margin:10px 8px 0 0}.chip.amber{background:var(--amberbg);border-color:#EAD9A8;color:var(--amber)}.chip.clay{background:var(--claybg);border-color:#EBCDB2;color:var(--clay)}
+.note{border-radius:13px;padding:14px 17px;font-size:14.5px;line-height:1.6;margin:14px 0}.note.sage{background:#E7F0E7;color:var(--deep);border:1px solid #CBE0D2}.note.amber{background:var(--amberbg);color:#6E5205;border:1px solid #EAD9A8}.note.red{background:var(--redbg);color:var(--red);border:1px solid #F0C6BD}
+ul,ol{margin:8px 0 8px 22px}li{margin:6px 0}code{background:var(--soft);border:1px solid var(--line);border-radius:7px;padding:1px 7px;font-size:.92em;color:var(--deep2)}a{color:var(--deep);font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:13.5px;margin:12px 0}th{text-align:left;color:var(--ink2);font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;padding:8px;border-bottom:1.5px solid var(--line)}td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--ink2)}td b{color:var(--ink)}
+pre{background:#10201A;color:#EAF3E8;border-radius:14px;padding:16px 20px;overflow-x:auto;font-size:13px;line-height:1.55;margin:12px 0}
+.arch{border:1.5px solid var(--line);border-radius:16px;background:var(--soft);padding:18px;margin:16px 0}.layerlab{font-size:12px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--deep);margin:12px 0 8px}.layerlab:first-child{margin-top:0}
+.archrow{display:flex;gap:10px;flex-wrap:wrap}.abox{background:#fff;border:1.5px solid var(--line);border-radius:13px;padding:12px 15px;flex:1;min-width:170px}.abox b{color:var(--deep2);display:block;font-size:15px}.abox span{font-size:13px;color:var(--ink2);display:block;margin-top:2px}.abox.primary{border-color:var(--deep);background:#EDF4EC}.abox.ext{border-style:dashed;background:#FFFDF4}
+.aarrow{text-align:center;color:var(--deep);font-weight:800;font-size:13px;padding:7px 0 1px}.aarrow small{display:block;font-weight:600;color:var(--ink2)}
+footer{color:var(--ink2);font-size:13.5px;text-align:center}
+@media(max-width:640px){section,header.top{padding:22px 20px}.abox{min-width:100%}table{font-size:12.5px}}
+@media print{body{background:#fff}section,header.top,nav.toc{box-shadow:none;break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+<div class="display" style="font-size:21px;color:var(--deep)">Muse Yoga</div>
+<h1 class="display">Technical Design</h1>
+<p>Design Phase output, in HTML for review (no <code>design.MD</code> will be written). Governing inputs: <b>scope.MD</b> as frozen contract, the approved UI in <b>uidesign.MD + prototype</b>, scope revisions C1–C15, and POC evidence a–g plus voice POC g. This design does not redesign the UI; anything it cannot support is flagged back, never silently dropped.</p>
+<span class="chip">Status: for owner approval</span><span class="chip amber">Deployment: local machine / LAN only</span><span class="chip clay">Admin: &lt;admin-email&gt;</span>
+<p style="margin-top:12px">Review companion: <a href="design-gate-review.html">gate review (dispositions &amp; stack summary)</a> · <a href="prototype/index.html">clickable prototype</a> · Voice POC: <code>python3 POC/g_voice/server.py 5174</code></p>
+</header>
+<nav class="toc"><b style="color:var(--deep)">Contents</b><a href="#decisions">0 Decisions locked</a><a href="#tech">1 Technology</a><a href="#security">2 Security</a><a href="#folders">3 Folder structure</a><a href="#frontend">4 Front end</a><a href="#logic">5 Business logic</a><a href="#backend">6 Backend services</a><a href="#data">7 Database &amp; files</a><a href="#trace">8 Traceability</a></nav>
+
+<section id="decisions">
+<h2 class="display">0 &nbsp;Decisions locked before this design</h2>
+<table>
+<tr><th>Decision</th><th>Value</th><th>Source</th></tr>
+<tr><td><b>Scope revisions</b></td><td>C1–C14 accepted (C1 provisional, C5 conditional on A9); C15 voice accepted</td><td>Gate review §1</td></tr>
+<tr><td><b>C16 admin step editing</b></td><td>Owner-approved 2026-11-03: admin-only edit/add/delete/reorder of steps and single-step image regeneration on the creation draft (2–12 steps; intent check on text; stale images block Accept). Users stay locked; no edits to published/pending asanas.</td><td>scope.MD Core Principles</td></tr>
+<tr><td><b>§2 contradictions</b></td><td>All four defaults accepted: mobile Secondary = camera+reference only; no camera-less Primary; one-row step strip = §13.2 list; Practice Again = same session, no fresh disclaimer</td><td>Owner 2026-10-31</td></tr>
+<tr><td><b>Voice phrases</b></td><td>“ready” · “I’m ready” · “let us start” (+ let’s start / I am ready); whole-word match, negation veto (“not ready” never starts)</td><td>Owner + POC g</td></tr>
+<tr><td><b>Voice production mode</b></td><td>Streaming (<code>wss://api.meta.ai/v1/asr/realtime</code>); POC one-shot (<code>POST /v1/asr/transcribe</code>) is the fallback path, same matcher</td><td>Owner 2026-10-31</td></tr>
+<tr><td><b>Voice facts proven</b></td><td>Human test passed (owner) within <b>5 feet</b>, plus synthesized clips: 3/3 accepted, 3/3 rejected correctly; one-shot API ~1.4–1.6 s, ~$0.00005/attempt</td><td>POC g report</td></tr>
+<tr><td><b>Listening device</b></td><td>Primary only. Secondaries are camera-only, muted, mic-less</td><td>Owner confirmed</td></tr>
+<tr><td><b>Admin</b></td><td><code>&lt;admin-email&gt;</code> in the server config file. No admin user-management anywhere</td><td>Owner + scope §5.3</td></tr>
+<tr><td><b>Deployment (POC)</b></td><td>Local machine only (this PC + LAN devices for practice). No cloud hosting, no cloud storage, no public domain in this phase — DB, files, and cache all live on this PC</td><td>Owner</td></tr>
+<tr><td><b>Mailbox</b></td><td>Google SMTP as config (real delivery, §1.5); Mailpit kept as no-account local alternative</td><td>Owner: “something free”</td></tr>
+</table>
+</section>
+
+<section id="tech">
+<h2 class="display">1 &nbsp;Technology</h2>
+<h3>1.1 Architecture diagram</h3>
+<div class="arch">
+<div class="layerlab">Devices — same user, max 3, on the local network</div>
+<div class="archrow"><div class="abox primary"><b>★ Primary (laptop/phone)</b><span>TTS speaks · mic listens (voice window only) · camera · the one Start tap</span></div><div class="abox"><b>Secondary ×2</b><span>Camera only · muted · no mic · waiting/capture display</span></div></div>
+<div class="aarrow">↓ HTTPS (local cert) · WebSocket session · WebRTC video device↔device<small>photos + voice audio exist in memory only — never stored, never logged</small></div>
+<div class="layerlab">Browser app — React + Vite, TypeScript</div>
+<div class="archrow"><div class="abox"><b>Screens</b><span>Libraries, detail, creation wizard, admin, history. No-scroll; lists paginate.</span></div><div class="abox"><b>Coaching</b><span>Equal camera|reference, count band, framing badge, Listening state.</span></div><div class="abox"><b>On-device</b><span>Camera/mic capture. MediaPipe Pose framing check. AudioWorklet PCM for voice.</span></div></div>
+<div class="aarrow">↓ REST API · WebSocket session messages<small>the browser never sees the Meta API key or any email credential</small></div>
+<div class="layerlab">Server — Node.js / Fastify, TypeScript (one machine)</div>
+<div class="archrow"><div class="abox primary"><b>Session service</b><span>Roles, step machine, capture-at clock, voice/demo broadcast, disconnects.</span></div><div class="abox"><b>API + rules</b><span>Auth/OTP, libraries, publishing, favourites, history, admin, mailbox sender.</span></div><div class="abox"><b>Job workers</b><span>PDF parse, generation + gate, validation + annotation, (fallback) transcription.</span></div></div>
+<div class="aarrow">↓ PostgreSQL rows · object files on disk · Redis queue/presence</div>
+<div class="layerlab">Data (local folders, §7) + External (server-side only)</div>
+<div class="archrow"><div class="abox"><b>PostgreSQL · files · Redis</b><span>Facts · images/PDFs · jobs &amp; presence. No user photos/audio anywhere.</span></div><div class="abox ext"><b>Meta APIs</b><span>wonder (steps, checks, judging) · image edits · voice transcribe (stream + one-shot)</span></div><div class="abox ext"><b>Mailbox</b><span>Google SMTP (config). Mailpit = local no-account alternative.</span></div></div>
+</div>
+
+<h3>1.2 Stack choices, each tied to POC evidence</h3>
+<table>
+<tr><th>Choice</th><th>Decision</th><th>Why / POC evidence</th></tr>
+<tr><td><b>Language</b></td><td>TypeScript everywhere (one monorepo)</td><td>Shared contracts for session messages, validation schemas; one hiring/testing surface.</td></tr>
+<tr><td><b>Front end</b></td><td>React + Vite</td><td>Component match to prototype (shared asana card, coaching stage); fast local dev server.</td></tr>
+<tr><td><b>Backend</b></td><td>Node.js + Fastify (REST + WebSocket in one process, workers in-process threads/child processes)</td><td>At local single-machine scale a monolith is operable by one command; service boundaries are modules (§6), not network hops.</td></tr>
+<tr><td><b>Realtime sync</b></td><td>WebSocket session service (authority) + WebRTC for live video</td><td>POC e proved WS + server timestamps at 9–148 ms. WebRTC is the one unproven media path (A1) with thumbnail fallback.</td></tr>
+<tr><td><b>TTS</b></td><td>Browser <code>speechSynthesis</code>, behind a <code>Speaker</code> interface, Primary only</td><td>POC g (primary session): no TTS model in Meta catalog; browser TTS already spoke the full script.</td></tr>
+<tr><td><b>Voice input</b></td><td>Streaming <code>wss://api.meta.ai/v1/asr/realtime</code> via server proxy; one-shot <code>POST /v1/asr/transcribe</code> fallback</td><td>POC g proved model/key/phrases (owner within 5 ft). Streaming chosen by owner to cut the ~1.5 s one-shot tail.</td></tr>
+<tr><td><b>Framing (C5)</b></td><td>MediaPipe Pose (on-device, WASM)</td><td>Runs per camera without uploading frames; landmarks for head/hands/feet + margin = A9 mechanism.</td></tr>
+<tr><td><b>AI text/vision</b></td><td><code>muse-wonder-1.0</code> via <code>/responses</code></td><td>POC a/d/f: steps ~6 s, feedback chain works, pose judgement ~10 s/step. (Scope wording “image-1.0 validates” corrected: image-1.0 only generates/edits.)</td></tr>
+<tr><td><b>AI images</b></td><td><code>muse-image-1.0</code>, <code>images/edits</code> only</td><td>POC b v2: text-only fallback loses the character; edits + lock prompt + vision gate passes.</td></tr>
+<tr><td><b>Database / files / queue</b></td><td>PostgreSQL · local disk folders for files · Redis (all on this machine; no cloud storage service or account)</td><td>Atomic counters (OTP, feedback, devices) need real transactions; images are files, not blobs.</td></tr>
+<tr><td><b>Email</b></td><td>Google SMTP (Gmail app password) behind a <code>Mailer</code> interface; Mailpit profile for offline local dev</td><td>§1.5. Real OTP to real inboxes; free at Gmail limits; provider swaps by config only.</td></tr>
+<tr><td><b>PDF parsing</b></td><td>Python worker (PyMuPDF) invoked as a job</td><td>POC c already proved PyMuPDF extraction; reuse it rather than rewriting in Node.</td></tr>
+</table>
+
+<h3>1.3 How the POC-proven behaviours are preserved (contract)</h3>
+<ul>
+<li><b>Synchronised capture:</b> identical mechanism — server issues <code>capture_at = server_now + 1200 ms</code>; each device corrects by its measured clock offset and fires locally. Target: reproduce 9–148 ms spread on LAN (§8 test).</li>
+<li><b>Gated generation:</b> <code>images/edits</code> only (character image as reference), character-lock + anatomy prompt, automated vision gate (same character? exactly 1 head/2 arms/2 legs? pose matches?), regenerate ≤3 attempts, per-step negative prompts where POC needed them (“must NOT stand…”). 11–35 s/image is surfaced as per-step progress.</li>
+<li><b>Feedback chain:</b> intent per line → reference exists → alignment, each submission standalone (no history sent), rejected counts toward the (configurable) limit, acceptance regenerates <i>all</i> steps/images and discards the old version.</li>
+<li><b>Timings drive async design:</b> ~6 s steps (inline wait), 1–2 min generation and ~10 s/step validation (queued jobs with progress events), voice decision (streaming partials; one-shot fallback ~1.5 s after clip end).</li>
+<li><b>Annotation:</b> wonder locates errors → server draws red circles/arrows programmatically on the stored character image (PIL/sharp overlay). AI image-edit annotation is forbidden (POC f: regenerated a different person).</li>
+</ul>
+
+<h3>1.4 Local-only deployment &amp; the LAN problem (POC scope)</h3>
+<ul>
+<li>One command starts everything (§3.4): web + API + session service + workers + Mailpit, on this machine.</li>
+<li>Primary on <code>https://localhost</code> gets camera/mic without warnings. Phones/other laptops on LAN need HTTPS they trust: the dev stack generates a local CA via <code>mkcert</code> (installed once per device) and serves <code>https://&lt;this-pc-lan-ip&gt;</code>. Self-signed without trust, or plain HTTP on a LAN IP, will block cameras — documented as setup step, not discovered by users mid-session.</li>
+<li>No public exposure: bind to LAN, firewall-friendly single port (reverse proxy in the app server: app, API, WS, Mailpit UI under one origin).</li>
+<li>Cloud/domain deployment is explicitly out of this design revision; the interfaces (Mailer, storage keys, WS authority) keep it a config move later.</li>
+</ul>
+
+<h3>1.5 Mailbox: Google SMTP by config (owner decision)</h3>
+<div class="note sage"><b>Decision: Google SMTP is the default mailer, configured — never hard-coded.</b> Anyone cloning the public repo sets their own Gmail address + app password in <code>.env</code> (from the committed <code>.env.example</code>) and OTPs deliver to real inboxes, including testers on other networks. Free at Gmail’s sending limits (~500/day), which is ample for this POC.</div>
+<ul>
+<li><b>Config (the public contract):</b> <code>MAILER=gmail · SMTP_HOST=smtp.gmail.com · SMTP_PORT=587 · SMTP_USER=&lt;your gmail&gt; · SMTP_APP_PASSWORD=&lt;16-char app password&gt; · MAIL_FROM="Muse Yoga &lt;your gmail&gt;"</code>. Secrets live only in the local <code>.env</code> (gitignored, §3.5); the repo ships names and placeholders, never values.</li>
+<li><b>Owner setup (only you can do this):</b> on the sending Google account, enable 2-Step Verification, then create an App Password (Google Account → Security → App passwords) and paste it into your local <code>.env</code>. Never paste it into chat, code, or GitHub — an app password in a public commit must be treated as leaked and revoked.</li>
+<li><b>How OTP works:</b> register/login → app generates the code (§2.2) → <code>Mailer.send()</code> sends via Gmail SMTP over STARTTLS → user reads the code in their real inbox (any network). Send failures surface as a designed retry state and are logged without the code.</li>
+<li><b>Alternative kept:</b> <code>MAILER=mailpit</code> runs the free local Mailpit inbox (Compose service) for offline development with no Google account — same <code>Mailer</code> interface, config switch only. OTP content, expiry, and rate rules live in business logic (§5), never in the transport.</li>
+</ul>
+</section>
+
+<section id="security">
+<h2 class="display">2 &nbsp;Security</h2>
+<h3>2.1 Threat model (local POC, honest scope)</h3>
+<p>Assets: OTP codes and login sessions, personal asanas, practice history, the Meta API key, admin authority. Adversaries in local scope: another user/process on the LAN, a stolen logged-in device, credential guessing, malicious uploads, prompt misuse through feedback. Out of scope locally: internet attackers (no public exposure) — but no design choice may make later public deployment unsafe (keys server-side, HTTPS, hashed codes from day one).</p>
+<h3>2.2 OTP, accounts, and lockouts (scope §5, limits are data)</h3>
+<ul>
+<li><b>Code:</b> 6 digits from a CSPRNG, 10-minute expiry, single use, stored only as a salted hash (<code>argon2id</code>/SHA-256+salt for a 6-digit code with attempt caps), compared in constant time. Plaintext codes exist only in the outgoing email and server memory during send.</li>
+<li><b>Registration:</b> max 3 code requests per email <i>lifetime</i> — counter on the registration record, incremented atomically before sending; the 4th request is refused and the email is marked permanently blocked. No recovery path exists in code or UI.</li>
+<li><b>Login:</b> 3 failed verifications → 6-hour lock (timestamp on account); a second lock event → permanent block. Counters reset only on successful login before any lock. All limits read from the settings table (§7) so admin changes apply without deploys.</li>
+<li><b>Anti-enumeration:</b> identical responses for unknown/blocked/locked emails (“If this email can sign in, a code is on its way” + the specific state only after a code attempt where scope requires the message); per-IP and per-email send throttles; CAPTCHA deferred (local POC) but throttle hooks are in the API layer.</li>
+<li><b>Sessions:</b> opaque 256-bit session tokens, hashed at rest, <code>HttpOnly; Secure; SameSite=Lax</code> cookies, 30-day idle expiry, per-device session rows enforcing the max-3-devices login rule — a 4th login is refused with scope’s exact logout-first message, never by silently evicting another device.</li>
+</ul>
+<h3>2.3 Authorisation (every endpoint, no exceptions)</h3>
+<ul>
+<li>Server middleware resolves session → user → role (<code>admin</code> iff email ∈ config file, read at startup + file-watch reload; changes audited).</li>
+<li>Personal asanas, favourites, history: owner check in the service layer on every read/write (IDOR-safe: foreign IDs return 404).</li>
+<li>Admin-only: approvals/rejections, public enable/disable, character &amp; PDF uploads, limits. Rejection requires a non-empty reason (DB check constraint, §7).</li>
+<li>Practice sessions: join requires the session code <i>and</i> a login session for the same user as the creator (A3); a different account with the code gets nothing.</li>
+</ul>
+<h3>2.4 The never-stored guarantee (photos + voice audio)</h3>
+<ul>
+<li>Camera frames for validation: browser memory (Blob) → TLS to server memory → Meta API → references dropped. No disk write, no object storage, no DB column, no log field, no analytics event can carry image/audio bytes — enforced by type (upload handlers accept bytes only into the validation/transcription functions) and by a CI grep test over storage modules.</li>
+<li>Voice audio: Primary mic → PCM chunks streamed through the server proxy → Meta realtime WS → transcript only. Server forwards bytes without buffering to disk; transcripts are kept only as the matched phrase + decision in session state, then discarded. Session logs record timings and decisions, never transcripts beyond the POC page’s local display.</li>
+<li>Mic/camera indicators are UI-truthful: mic track exists only inside the Listening window; framing analysis never leaves the device.</li>
+</ul>
+<h3>2.5 Backend services cannot be reached — or run — directly (owner question)</h3>
+<p>The rule: <b>a logged-in browser can ask the API for an outcome; it can never invoke a backend service, worker, database, or external API itself.</b> Login changes <i>which API outcomes</i> a user may request, never <i>what network things</i> they can touch.</p>
+<table>
+<tr><th>Layer</th><th>Reachable from browser/LAN?</th><th>How it is enforced</th></tr>
+<tr><td><b>Web app + API + session WS</b> (one origin)</td><td>Yes — the <b>only</b> exposed surface</td><td>Single local port behind the app reverse proxy; everything else 404s. Same-origin only (CORS denies other origins; WebSocket upgrade checks <code>Origin</code> + session cookie).</td></tr>
+<tr><td><b>Domain/business-logic modules</b></td><td>No listener exists</td><td>They are in-process libraries inside the server (modular monolith, §6), not services with ports. There is no URL, socket, or command a user — logged in or not — can address them with. Only API handlers call them, after auth.</td></tr>
+<tr><td><b>Job workers</b> (generation, validation, PDF)</td><td>No</td><td>Workers poll the internal Redis queue; they expose no HTTP. Users can only create a <i>job request</i> through an authorised API action (e.g. “Create Asana”), which the server validates (role, ownership, quotas, state) before enqueueing. No endpoint accepts a job type, payload, or Meta prompt from the client.</td></tr>
+<tr><td><b>PostgreSQL / Redis</b></td><td>No</td><td>Bound to the internal Docker network only (no host port published in the shipped Compose file; a localhost-only debug mapping is off by default). Credentials exist only in the server’s <code>.env</code>; the browser never receives them.</td></tr>
+<tr><td><b>Meta APIs / Gmail SMTP</b></td><td>No</td><td>Keys/passwords live server-side (§2.6). The browser cannot call Meta with our key, cannot send mail, and cannot even learn the endpoints’ credentials from responses or errors (sanitised error mapping at the API edge).</td></tr>
+<tr><td><b>Admin operations</b></td><td>API-shaped only</td><td>Approve/reject/limits/uploads are ordinary API routes <i>plus</i> the admin-role check (§2.3) and audit. There is no admin console port, CLI-over-HTTP, or debug endpoint in the shipped build (<code>/health</code> returns reachability booleans only, no data).</td></tr>
+</table>
+<ul>
+<li><b>Authorisation is per-operation, not per-login:</b> every handler re-derives “may <i>this</i> user do <i>this</i> action on <i>this</i> object now?” (owner/admin/state/quota checks in the domain layer, §5). A valid session cookie alone authorises nothing beyond identity — replaying a captured request for someone else’s asana, an approval, or a second device-join fails those checks (foreign IDs 404; role failures 403; both audited).</li>
+<li><b>Cookie-session hardening for mutations:</b> <code>SameSite=Lax</code> + CSRF token on state-changing requests, so another LAN site cannot ride a logged-in browser; WebSocket messages are schema-validated and state-machine-checked (a client cannot fabricate a <code>captureAt</code>, verdict, or role change — the server originates all of them).</li>
+<li><b>Rate and abuse limits at the edge:</b> per-session/per-IP throttles on OTP, creation, feedback, and voice windows, so “logged in” cannot become “unlimited AI spend” (§6.2 cost log + caps).</li>
+<li><b>Later, if services are ever split:</b> this design’s module seams become internal-only listeners on a private network with a shared service secret/mTLS — the browser-facing API surface does not grow. That is a deployment change, not a redesign.</li>
+</ul>
+
+<h3>2.6 Uploads, secrets, and audit</h3>
+<ul>
+<li>Uploads (PDF, character images): extension + magic-byte validation, size caps (PDF 50 MB, image 10 MB), random storage keys (no user filenames in paths), PDF parsed in a sandboxed worker, images re-encoded before storage. No SVG, no archives.</li>
+<li>Secrets: Meta key + optional Gmail app password only in server <code>.env</code> (gitignored); config file lists the admin email only. Keys never reach the browser, logs, or error messages.</li>
+<li>Audit log (append-only table): admin approve/reject (with reason), limit changes, config reloads, OTP lock/block events, session create/end. No user content in audit rows.</li>
+</ul>
+</section>
+
+<section id="folders">
+<h2 class="display">3 &nbsp;Project folder structure</h2>
+<pre>muse_yoga/
+  design.html                  ← this design (review artifact)
+  design-gate-review.html      ·  prototype/ (archived mock, read-only reference)
+  scope.MD · uidesign.MD · UItoDesignHandoff.MD · HandOffForUI.md
+  POC/                         ← frozen evidence; nothing imports from POC
+  app/
+    package.json · pnpm-workspace.yaml · docker-compose.yml (local stack)
+    config/
+      admins.json              ← ["&lt;admin-email&gt;"]  (hot-reloaded)
+      limits.default.json      ← feedback 3 · reg-OTP 3 · login-fails 3 · lock 6h · devices 3
+    apps/
+      web/                     ← React + Vite (routes, coaching, components)
+      server/                  ← Fastify: api/ session/ workers/ mailer/ ai/
+    packages/
+      contracts/               ← shared TS types + WS message schemas (zod)
+      domain/                  ← pure business logic (§5), no I/O, fully tested
+    data/                      ← LOCAL RUNTIME DATA (gitignored, §7)
+      db/ (postgres volume) · objects/ (files) · tmp/ (parse scratch, wiped)
+    scripts/
+      dev.mjs                  ← one-command local start (§3.4 of design §1)
+      mkcert-setup.md          ← LAN HTTPS trust steps per device
+    tests/                     ← unit (domain) · api · session-sim · e2e (playwright)
+  .env.example                 ← META_API_KEY= · MAILER=mailpit|gmail · …</pre>
+<h3>Public GitHub structure &amp; .gitignore (owner requirement)</h3>
+<ul>
+<li><b>Repo state:</b> this workspace is not a Git repo yet, and per owner decision it stays that way through build: Git is initialised only after the app is built, tested, fixed, refined, and owner-confirmed (publication phase). Folder structure and secret handling are nevertheless kept publication-ready from day one (§ below), so that later step is a pure <code>git init</code> + ignore-file drop-in with no restructuring. The Meta key in workspace <code>.api.txt</code> has never been committed and must never be — it is ignored from commit #1, as are all secrets.</li>
+<li><b>Committed:</b> app source, <code>packages/</code>, tests, <code>docker-compose.yml</code>, <code>.env.example</code> (names + placeholders only), <code>config/admins.example.json</code>, docs/design HTML, seed characters + sample asana, README with setup (Node, Docker, mkcert, Google SMTP §1.5).</li>
+<li><b>Ignored (root <code>.gitignore</code>, verified with <code>git status</code> before first push):</b> <code>.env*</code> (except <code>.env.example</code>) · <code>.api.txt</code> · <code>config/admins.json</code> (real admin list; example file committed instead) · <code>data/</code> (DB volume, object files, uploads) · <code>node_modules/ · dist/ · .venv/ · __pycache__/</code> · local certs (<code>*.pem · certs/</code>, mkcert output) · logs &amp; AI cost ledgers with account data · OS/editor junk &amp; <code>*:Zone.Identifier</code>.</li>
+<li><b>Large / licensed content:</b> the Government reference PDF and generated image sets stay out of the public repo (size + redistribution) — the repo ships the folder layout + a README that names an example (e.g. <i>Common Yoga Protocol, Government of India, 2018</i> — bring your own PDF) without bundling any PDF; a <code>.gitattributes</code> LFS note is included if that ever changes. Pre-push gate: <code>git check-ignore</code> tests + secret scan (gitleaks) in CI.</li>
+<li><b>Layout note:</b> runtime data lives under <code>app/data/</code> (one ignored tree), so a clone + <code>.env</code> + one dev command (§ below) is the whole setup story for anyone trying the project.</li>
+</ul>
+<h3>Local-dev topology (replaces POC’s portproxy/flags hacks)</h3>
+<ul>
+<li><code>scripts/dev.mjs</code> starts: PostgreSQL + Redis (compose), Mailpit, server (API+WS+workers), web — behind one local reverse proxy origin.</li>
+<li><code>https://localhost</code> for the Primary on this PC; <code>https://&lt;LAN-IP&gt;</code> with the mkcert CA installed for phones/laptops. Portproxy and insecure-origin flags are not needed because the cert is trusted, not bypassed.</li>
+<li>Multi-device rehearsal: same Wi-Fi, ≤3 devices, same account, session code join (§4.5). The POC’s 3-device test (2 laptops + iPhone) is the acceptance rehearsal for §8.</li>
+</ul>
+</section>
+
+<section id="frontend">
+<h2 class="display">4 &nbsp;Front end</h2>
+<h3>4.1 Routing &amp; navigation</h3>
+<ul>
+<li>Routes mirror the site map (gate/§ prototype): <code>/login /register /public /personal /detail/:id /favourites /create /history /practice/* /admin</code>. Unauthenticated → <code>/login</code> for every route (scope: nothing browsable logged-out).</li>
+<li><b>Origin-aware stack (C13):</b> an explicit in-app history carrying <code>origin</code> (public|personal|favourites|detail); Detail’s back and practice End/Practice-Again return through it, never bare links.</li>
+<li>Global header on all screens except coaching (C9); coaching keeps its slim strip (app name left, asana centred, step chips right).</li>
+</ul>
+<h3>4.2 Components &amp; layout contracts</h3>
+<ul>
+<li><b>Shared asana card (C12)</b> — one component; props = asana + state (<code>active|disabled|pending|rejected|public</code>); personal-only actions render from state, layout identical across libraries.</li>
+<li><b>No-scroll system (C10):</b> each route owns a viewport budget (CSS grid rows: header / content / pager). Libraries &amp; history paginate (6/page as prototype), admin tables paginate, step lists in Detail use internal two-column fit. A route that cannot fit fails its layout test rather than scrolling.</li>
+<li>Distance readability: count numerals in Fraunces at <code>clamp(54px,10vh,82px)</code>, verdicts and “Listening” at poster size, text only on solid/backed surfaces over imagery (prototype v5–v6 lesson, carried as a lint-checked class).</li>
+<li>Accessibility: focus-visible states, <code>prefers-reduced-motion</code>, aria-live for spoken-equivalent status (count, listening, verdict), colour never the only signal (icons + words for every state, P6).</li>
+</ul>
+<h3>4.3 Camera, microphone, and media</h3>
+<ul>
+<li>Explicit <b>Enable Camera</b> / <b>Enable Microphone</b> buttons with plain-language status (<code>not started / on / blocked — …</code>) — never silent autoplay (POC lesson). Denied mic → voice unavailable notice; the session still starts from the Start screen and each timeout path explains the mic state there (no in-coaching tap exists).</li>
+<li>Own camera via <code>getUserMedia</code>; capture frames drawn to canvas → JPEG Blob in memory. Other-device live video via WebRTC (A1); if a peer stream fails, that tile degrades to the last-capture thumbnail (POC-proven) and says so.</li>
+<li>Framing (A9): MediaPipe Pose per camera, on-device; badge per tile (<code>IN VIEW ✓ / NOT FULLY IN VIEW ⚠</code>); losing framing on any camera pauses counting (Framing Warning, C5).</li>
+<li>Voice capture: AudioContext + AudioWorklet → 16 kHz PCM chunks → WS to server proxy → Meta realtime. Listening opens only after the TTS prompt’s <code>onend</code>; a visible countdown ring (10 s) and mic-live indicator run only inside the window.</li>
+</ul>
+<h3>4.4 Practice front-end state machine</h3>
+<p>The browser renders session state; it does not own it. The session service (§6) is authoritative; every device renders the same broadcast state. Local optimistic UI is limited to camera/mic previews.</p>
+<pre>SETUP → DISCLAIMER → [SELECT if generic] → START (demo/skip + Start)
+  → per step: INTRO → FRAMING → VOICE_PROMPT → LISTENING ─heard→ COUNT×3 ─→ next INTRO
+                                   LISTENING ─10s/error→ (apology spoken) → START (same step pending)
+                                   FRAMING lost ─→ WARNING ─all-in-view→ VOICE_PROMPT
+  → ANALYSING → RESULTS → (Practice Again → START, same asana) / (Pick Another → SELECT → DISCLAIMER → START)</pre>
+<ul>
+<li>Demo playback is server-sequenced (A8): step index broadcasts on narration end + ~2 s hold; Pause / Hear Again / End Demo are Primary-issued session commands, rendered identically on Secondaries.</li>
+<li>Role switch (C2): Secondary button sends a switch request; pre-capture it applies at once, mid-step it renders “Primary after this step” and applies at the step boundary (new Primary speaks the next step).</li>
+<li>Disconnect: presence loss renders the offline banner + tile replacement on all devices; the announcement is spoken on the (possibly newly promoted) Primary.</li>
+</ul>
+<h3>4.5 Creation, libraries, history, admin (front end)</h3>
+<ul>
+<li>Creation wizard (6 steps as prototype): checks → steps review (read-only) → generation progress per step (stage + elapsed) → review + feedback (remaining count, rejection reason inline) → accept. Long waits offer “keep this tab open” + job polling; closing the tab does not cancel the server job, re-entering resumes its status.</li>
+<li>Search is diacritics-insensitive in the UI (normalised index from server, A4): <code>Vrikshasana</code> finds <code>Vṛkṣāsana</code>.</li>
+<li>History: month calendar (dots + counts), day list, session detail = stored Results content. No user photo can render here — the API has no field for one.</li>
+<li>Admin: five tabs as wireframed; rejection reason is a required field client- and server-side; limits form edits settings (§7) with audit.</li>
+</ul>
+</section>
+
+<section id="logic">
+<h2 class="display">5 &nbsp;Business-logic layer</h2>
+<p><code>packages/domain</code> — pure TypeScript functions over data passed in, no I/O, no framework. Every scope rule lives here exactly once and is unit-tested here; API, workers, and the session service call it. If a rule cannot be written as a pure function with tests, it does not ship.</p>
+<table>
+<tr><th>Module</th><th>Rules owned (testable contract)</th></tr>
+<tr><td><b>auth.rules</b></td><td>Registration OTP lifetime counter; login fail/lock state machine (3 → 6 h; second → permanent); device-session admission (max N, refuse 4th); all thresholds read from settings, never literals.</td></tr>
+<tr><td><b>asana.rules</b></td><td>State machine <code>personal-active ⇄ disabled · → pending → public | rejected</code> with scope §11.3 guards (pending may practise/disable/withdraw; rejected may not edit/resubmit; approved leaves personal &amp; loses creator edit rights); disable reversible; no delete transition exists.</td></tr>
+<tr><td><b>creation.rules</b></td><td>Check pipeline (reference-exists unless admin; public-name duplicate ban); step-count chosen by model only; no manual-edit API shape exists at all.</td></tr>
+<tr><td><b>feedback.rules</b></td><td>Three checks in order (intent per line → reference → alignment); counter increments on <i>submission</i> including rejections; standalone payload builder (asserts no prior feedback in context); acceptance = whole-asana replacement.</td></tr>
+<tr><td><b>generation.rules</b></td><td>Edits-only invariant; gate verdict parser (character/head/arms/legs/pose); attempt budget (3/step) and negative-prompt table; failure → explicit retry state, never silent text-only fallback.</td></tr>
+<tr><td><b>session.rules</b></td><td>Role assignment <code>auto-first</code> behind a strategy switch (C1 revert = config); switch-queue at step boundary (C2); promotion order (C3); capture schedule (3 sets/step, 3 s apart, on “3”); best-set selection input contract; redo = all steps.</td></tr>
+<tr><td><b>voice.rules</b></td><td>Accepted-phrase matcher from POC g (whole-word tokens, negation veto) — imported behaviour, server-authoritative; listening window (10 s), prompt-after-TTS gating, timeout → Start-screen transition; phrases configurable as data.</td></tr>
+<tr><td><b>framing.rules</b></td><td>Landmark contract: head+both hands+both feet inside frame + margin, held ~1 s; pause/resume decisions; out-of-frame set discard.</td></tr>
+<tr><td><b>history.rules</b></td><td>What may be recorded (date, asana, per-step verdict/text, annotated image ref) — and the type-level absence of photo/audio fields.</td></tr>
+<tr><td><b>search.rules</b></td><td>Name normalisation (diacritics strip + transliteration variants: <code>ṛ→ri, ā→a, ṣ→s, ṭ→t, ī→i, ū→u, ḍ→d, ś→s, ṅ→n</code>) shared by library search and reference lookup (A4).</td></tr>
+</table>
+<p><b>API surface of the layer:</b> typed command functions (<code>submitFeedback()</code>, <code>admitLogin()</code>, <code>transitionAsana()</code>, <code>nextSessionEvent()</code> …) returning decisions + domain events; transport layers execute them against DB/queue/AI. Settings (limits) are injected as values snapshotted per operation so an admin change mid-flow cannot half-apply.</p>
+</section>
+
+<section id="backend">
+<h2 class="display">6 &nbsp;Backend services</h2>
+<p>One Node process, modular monolith — boundaries are folders and contracts, not network services. At local single-user-plus-devices scale, distribution would add failure modes without benefit; the module seams keep a later split mechanical.</p>
+<table>
+<tr><th>Service (module)</th><th>Owns</th><th>Key contracts</th></tr>
+<tr><td><b>auth</b></td><td>Registration, OTP issue/verify, login locks, device sessions, logout</td><td><code>POST /auth/register · /auth/otp/request · /auth/otp/verify · /auth/logout</code>; Mailer port (Mailpit|Gmail)</td></tr>
+<tr><td><b>users/roles</b></td><td>Profile, role resolution (admin config), settings reads</td><td>Role derived per request; no user-admin endpoints exist</td></tr>
+<tr><td><b>asanas</b></td><td>Public/personal queries, detail, enable/disable, submit/withdraw, approve/reject</td><td>State transitions only via domain functions; approval moves library + credits “Submitted by {first name}”</td></tr>
+<tr><td><b>creation</b> (orchestrator + workers)</td><td>Checks → steps (wonder) → per-step images (edits + gate) → feedback loop → accept/save</td><td>Job model below; progress via WS <code>job</code> events + poll fallback</td></tr>
+<tr><td><b>reference</b></td><td>PDF upload, parse job (Python/PyMuPDF), per-asana index, lookup for creation/feedback</td><td>Status <code>processing|ready|failed(+reason)</code>; normalised-name index (A4)</td></tr>
+<tr><td><b>session</b> (WS authority)</td><td>Practice rooms: join, roles, state machine, capture scheduling, demo sequence, voice windows, presence</td><td>Message protocol in §6.1; server clock is the only clock for captures</td></tr>
+<tr><td><b>voice proxy</b></td><td>Primary PCM → Meta realtime WS; one-shot fallback; matcher decision → session event</td><td>Key server-side; audio unbuffered to disk; decision latency logged</td></tr>
+<tr><td><b>validation</b> (workers)</td><td>Per-step best-set choice + judgement (wonder vision), annotation overlay render</td><td>Input sets held in memory from session service; output = verdict/text/marks only</td></tr>
+<tr><td><b>history</b></td><td>Session recording + calendar/day/session queries</td><td>Writes only domain-approved fields (no photo/audio columns exist)</td></tr>
+<tr><td><b>admin</b></td><td>Submissions queue, public enable/disable, character/PDF uploads, limits CRUD</td><td>Every mutation audited; limits validated as positive ints/durations</td></tr>
+<tr><td><b>files</b></td><td>Upload intake (validation, re-encode), stored-image serving</td><td>Immutable step images: <code>Cache-Control: immutable</code>; write-once keys (§7)</td></tr>
+</table>
+
+<h3>6.1 Session message protocol (WebSocket, zod-validated in <code>contracts</code>)</h3>
+<pre>client → server:  join{code} · claimPrimary{} · switchPrimary{} · enableState{camera,mic}
+                  demoControl{pause|again|end} · readyClicked{} (Start screen only)
+                  frameState{inView} · captureBlob{step,set,deviceId} (binary, memory only)
+                  voiceAudio{pcm chunks} (Primary, Listening window only)
+server → all:     state{...snapshot} · roleChanged{primaryId,atStep} · captureAt{ts,step,set}
+                  demoStep{n} · voiceWindow{open,until} · voiceDecision{heard,phrase}
+                  deviceOffline{id} · framing{deviceId,inView} · analysing{step} · results{...}</pre>
+<ul>
+<li>Snapshots on join/reconnect (state is server-owned; a refreshed device re-renders, never forks the session).</li>
+<li>Heartbeats 5 s; two misses = offline event + spoken announcement; capture sets exclude offline devices from that set onward.</li>
+<li>Clock sync: ping/pong offset estimation at join and per step (POC method); <code>captureAt</code> scheduled +1200 ms out.</li>
+<li>WebRTC signalling rides the same WS (<code>rtc{offer|answer|ice}</code> relay); media never touches the server.</li>
+</ul>
+
+<h3>6.2 Background jobs</h3>
+<ul>
+<li>Redis lists + worker loops with a <code>jobs</code> table for status (<code>queued|running|done|failed</code>, per-step progress JSON), so waiting UIs poll/stream real stage + elapsed instead of spinners.</li>
+<li>Job types: <code>pdf.parse · creation.steps · creation.image(step) · creation.regenerate · validation.step · annotation.render</code>. Voice streaming is <i>not</i> a job (it is a live proxy); one-shot transcription fallback is a request, not a queue.</li>
+<li>AI cost/rate controls: per-user concurrent-job cap (1 creation at a time), attempt budgets in domain rules, every Meta call logged (model, duration, est. cost) to the AI-call log — the production successor of the POC ledger/guard.</li>
+<li>Failure semantics: a failed generation step fails the job with a retry action and saves nothing; a failed validation step retries once, then reports that step as “could not check” rather than guessing (owner-visible, never silent).</li>
+</ul>
+
+<h3>6.3 Observability</h3>
+<p>Structured server logs (session id, step, decision, ms timings; no content bytes), a local <code>/health</code> page (DB/Redis/SMTP/Meta reachability), and per-session timing records reproducing POC metrics (capture spread computed from device fire-times, voice decision latency, validation seconds/step) so §8 acceptance numbers come from the app itself.</p>
+</section>
+
+<section id="data">
+<h2 class="display">7 &nbsp;Database &amp; file-storage structure</h2>
+<h3>7.1 PostgreSQL schema (core tables)</h3>
+<pre>users            id · first_name · last_name · email(unique, lowercased) · age · zip
+                 reg_otp_requests int · blocked_at · lock_count · locked_until · created_at
+otp_challenges   id · email · purpose(register|login) · code_hash · expires_at · used_at · attempts
+login_sessions   id · user_id · token_hash · device_label · created_at · last_seen_at · revoked_at
+asanas           id · name · name_norm · character_id · creator_id · library(public|personal)
+                 state(active|disabled|pending|rejected|public) · difficulty · body_part
+                 category · benefits · contraindications · feedback_used int
+                 rejection_reason · submitted_by_name · created_at
+                 CHECK (state<>'rejected' OR rejection_reason <> '')
+asana_steps      asana_id · n · instruction · duration_s · image_key · PK(asana_id,n)
+characters       id · folder · name · image_key · is_default_folder bool
+reference_books  id · title · pdf_key · status(processing|ready|failed) · fail_reason · uploaded_by
+reference_asanas book_id · name · name_norm · text · page_refs jsonb
+favourites       id · user_id · name · created_at
+favourite_items  list_id · asana_id · position · UNIQUE(list_id, asana_id)
+practice_sessions id · user_id · asana_id · started_at · ended_at
+practice_steps   session_id · n · verdict(correct|incorrect) · correction_text · annotated_key
+settings         key PK · value jsonb · updated_by · updated_at   (limits, voice phrases…)
+jobs             id · type · owner_id · status · progress jsonb · error · created/updated
+audit_log        id · actor · action · subject · detail jsonb · at   (append-only)
+ai_calls         id · model · purpose · ms · est_usd · at</pre>
+<ul>
+<li><b>State in constraints, not just code:</b> rejection-reason check above; <code>favourite_items</code> uniqueness enforces no-duplicates; atomic <code>UPDATE … SET reg_otp_requests = reg_otp_requests+1 … WHERE reg_otp_requests &lt; :limit RETURNING</code> enforces OTP/feedback counters without races (same pattern for <code>feedback_used</code> and login-session admission under a serialisable transaction).</li>
+<li><b>Disabled is a state, never a delete:</b> no <code>DELETE</code> path for asanas anywhere in the API; lists delete rows only in <code>favourites</code> (the list, never asanas).</li>
+<li><b>What is deliberately absent:</b> no column or table for user photos, audio, transcripts, or OTP plaintext. History = <code>practice_*</code> text + <code>annotated_key</code> only. A schema test asserts this allowlist.</li>
+<li>Migrations via numbered SQL files; local backup = <code>pg_dump</code> + objects folder copy (one script, documented, since data is local).</li>
+</ul>
+<h3>7.2 File storage (local disk folders only — no cloud storage)</h3>
+<pre>data/objects/
+  characters/{folder}/{characterId}.png        (admin uploads, re-encoded)
+  asanas/{asanaId}/step-{n}.png                (WRITE-ONCE: stored step images)
+  asanas/{asanaId}/annotated/{sessionId}-{n}.png (per-session marked copies)
+  reference/{bookId}/source.pdf · pages/… · extracted.json
+  uploads-tmp/                                  (intake only; wiped after processing)</pre>
+<ul>
+<li>Scope’s <code>/asanas/&lt;name&gt;/step-1.png + step-1.txt</code> pattern maps to: one object per step image (<code>step-{n}.png</code>) + instruction text in <code>asana_steps.instruction</code> (DB is the text store; an export script can materialise the <code>.txt</code> layout for inspection). Rationale: per-step text is queried with the asana, versioned with acceptance, and never edited — DB storage keeps image+text acceptance atomic.</li>
+<li>Stored step images are immutable: new keys on regeneration (during creation only), old keys deleted only when a feedback regeneration <i>replaces</i> an unsaved draft — once accepted, keys are never overwritten or regenerated (scope §9).</li>
+<li>Serving: stored images through the files service with immutable caching (coaching re-reads them every session); annotated images are ordinary derived files and may be re-rendered from stored marks if lost.</li>
+</ul>
+</section>
+
+<section id="trace">
+<h2 class="display">8 &nbsp;Traceability &amp; proof obligations (§5.8 exit criteria)</h2>
+<h3>8.1 Scope-change dispositions (final)</h3>
+<p>C1–C14 accepted as recorded in <a href="design-gate-review.html">gate review §1</a> (C1 provisional behind the <code>session.rules</code> strategy switch; C5 conditional on A9 below). C15 voice accepted with owner decisions (every step incl. Step 1 after the Start click; phrases in §8.2/A10; timeout → Start screen; Primary-only; streaming production mode). No UI element is dropped; the four §2 contradictions are closed by owner-accepted defaults (gate review updated accordingly).</p>
+<h3>8.2 Assumption register — mechanism or flag-back for every item</h3>
+<table>
+<tr><th>#</th><th>Assumption</th><th>Mechanism in this design</th><th>Status</th></tr>
+<tr><td><b>A1</b></td><td>Other-device live video</td><td>WebRTC peer streams, WS signalling (§6.1); per-tile degradation to POC-proven last-capture thumbnail if a peer fails, labelled on screen</td><td>Mechanism specified; <b>prove in build</b> (3-device LAN test)</td></tr>
+<tr><td><b>A2</b></td><td>TTS provider</td><td>Browser <code>speechSynthesis</code> behind <code>Speaker</code> interface, Primary-only routing incl. step-boundary handover of pending utterances</td><td><b>Proven</b> (POC primary session); provider swap is an adapter</td></tr>
+<tr><td><b>A3</b></td><td>Session join, roles, retention</td><td>6-digit session code + same-account session check; server-owned role state (auto-first strategy, switch, promotion); selection/demo state broadcast; devices/Primary retained across Pick-Another (disclaimer re-run)</td><td>Sync <b>proven</b> (POC e); join/retention to prove in build</td></tr>
+<tr><td><b>A4</b></td><td>Diacritics-tolerant search</td><td><code>search.rules</code> normalisation (<code>name_norm</code> columns + reference index), variant table from POC c failures</td><td>Mechanism specified; test corpus = POC c names</td></tr>
+<tr><td><b>A5</b></td><td>OTP expiry &amp; resend</td><td>10-min single-use hashed codes; resend issues a new code and counts against the same lifetime/login counters (scope caps unchanged); expiry copy wired in Login/Registration</td><td><b>Decided here</b> (design-phase item §19)</td></tr>
+<tr><td><b>A6</b></td><td>PDF parsing at scale</td><td>Background job + PyMuPDF worker, <code>processing|ready|failed</code> status, per-asana extracted store; upload returns immediately</td><td><b>Proven</b> at POC scale (&lt;1 s, 54 pp); job shape covers larger books</td></tr>
+<tr><td><b>A7</b></td><td>Production vision gate</td><td><code>generation.rules</code>: edits-only, lock+anatomy prompts, wonder gate verdict, ≤3 attempts/step, negative-prompt table, human accept remains (feedback loop)</td><td><b>Proven</b> (POC b v2); attempt telemetry in <code>ai_calls</code></td></tr>
+<tr><td><b>A8</b></td><td>Demo sync across devices</td><td>Server-sequenced <code>demoStep</code> broadcast on narration-end + ~2 s; Primary-issued controls as session commands</td><td>Mechanism specified; prove with A1 test</td></tr>
+<tr><td><b>A9</b></td><td>Real-time framing detection</td><td>MediaPipe Pose on-device per camera; domain contract head/hands/feet + margin held ~1 s; pause/resume as session events; out-of-frame sets discarded</td><td><b>TO-PROVE in build</b> — acceptance test §8.4; if accuracy fails, flag back to owner (C5 conditional)</td></tr>
+<tr><td><b>A10</b></td><td>Voice recognition (“Ready”)</td><td>Streaming proxy → Meta realtime WS; POC g matcher server-authoritative; phrases: ready / I’m ready / let us start (+variants), negation veto; window opens after TTS ends, 10 s cap, timeout → Start screen; one-shot fallback (~1.5 s tail)</td><td><b>Human-proven ≤5 ft</b> (owner) + synthetic 3/3; streaming latency to prove in build</td></tr>
+</table>
+<h3>8.3 Owner questions Q1–Q12 (uidesign §11) — final record</h3>
+<table>
+<tr><th>Q</th><th>Decision</th></tr>
+<tr><td>Q1 coaching layout · Q2 step strip · Q3 secondary feeds · Q4 camera-less Primary · Q5 no analysing cancel</td><td>As prototype/defaults; Q3/Q4 closed by §2-default rulings (camera+reference on mobile Secondary; Primary camera mandatory)</td></tr>
+<tr><td>Q6 diacritics search · Q7 feedback explains-why · Q8 steps reviewed before images</td><td>Yes · explains · yes (A4 mechanism; §4.5)</td></tr>
+<tr><td>Q9 history “N of M correct”</td><td>Kept as factual step count with the no-grade line (prototype default, recorded here as decided)</td></tr>
+<tr><td>Q10 select-after-disclaimer · Q11 auto-Primary provisional + demo/ready · Q12 framing wording/intervals</td><td>Prototype behaviour as built (two entry orders per C6); Q11(a) provisional behind strategy switch, Q11(b) as built; Q12 wording as wireframed, 10 s repeat, valid sets kept — subject to A9 proof</td></tr>
+</table>
+<h3>8.4 Acceptance tests the build must pass (evidence, not claims)</h3>
+<ol>
+<li><b>Sync:</b> 3 real devices (2 laptops + phone) on LAN — capture spread measured from device fire-times; PASS = same order as POC (≤~150 ms), disconnect announced, thumbnail fallback exercised by disabling WebRTC.</li>
+<li><b>Voice:</b> at 5 ft, quiet room: 10 trials each phrase (3 accepted → start; “already/not ready”/silence → apology + Start screen); streaming decision latency recorded; one-shot fallback forced and re-tested.</li>
+<li><b>Framing (A9 gate for C5):</b> step out of each camera in turn → pause within ~1 s, no capture counted; return → automatic recount; false-pause rate noted for owner.</li>
+<li><b>Generation:</b> one new asana end-to-end — steps ~seconds, images gated (gate log per step), no text-only fallback in <code>ai_calls</code>; feedback rejection shows reason and decrements remaining count.</li>
+<li><b>Rules:</b> domain unit tests for OTP lifetimes/locks, device cap, publication guards, feedback counting; API tests for owner/admin authorisation on every route; schema allowlist test (no photo/audio fields).</li>
+<li><b>Privacy:</b> after a full session, inspect DB + <code>data/</code>: only text + annotated character images exist; server logs contain no transcript/image bytes.</li>
+</ol>
+<div class="note amber"><b>What approval of this page authorises:</b> building and locally testing the app exactly as designed (local-only scope: no cloud storage, no cloud hosting). Git initialisation and GitHub publication happen only after owner confirmation of the tested app. It does not authorise cloud deployment, new UI, or scope changes — those return here as design revisions.</div>
+</section>
+
+<footer>Technical Design · Muse Yoga · Awaiting owner approval — no app code has been written from this design yet.</footer>
+</div>
+</body>
+</html>
+

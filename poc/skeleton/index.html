@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skeleton POC — one camera, live motion-capture skeleton</title>
+<!--
+  STANDALONE POC (single camera, written from base). One camera → Google
+  MoveNet pose tracking (TensorFlow.js, CPU backend — no WebGL needed)
+  runs LOCALLY in this page. The only thing drawn is the skeleton on a
+  plain white canvas; the person and the background are never shown, and
+  video never leaves the device.
+
+  Framework note: MediaPipe PoseLandmarker was tried first (33 landmarks),
+  but its runtime needs WebGL for inference — it cannot run in browsers
+  without WebGL. MoveNet on the CPU backend runs anywhere; it tracks
+  17 body keypoints, plenty for a skeleton view.
+
+  Serve over HTTP(S)/localhost (camera needs a secure context):
+    python3 -m http.server 8000    then open  http://localhost:8000/
+-->
+<style>
+  :root { --deep: #2F5D43; --ink: #223129; --line: #D8E2D4; --clay: #B4652F; --red: #B23B2C; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: system-ui, sans-serif; background: #F5F8F3; color: var(--ink); min-height: 100dvh; display: flex; flex-direction: column; align-items: center; padding: 18px; }
+  h1 { font-size: 22px; color: var(--deep); }
+  p.sub { color: #555; font-size: 14px; margin: 5px 0 14px; text-align: center; line-height: 1.5; }
+  button { padding: 11px 22px; border-radius: 999px; border: none; background: var(--deep); color: #fff; font-weight: 700; font-size: 15px; cursor: pointer; }
+  button.ghost { background: #fff; color: var(--deep); border: 1.5px solid var(--deep); }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: center; margin: 8px 0; }
+  #status { font-size: 14px; padding: 9px 14px; border-radius: 10px; background: #fff; border: 1px solid var(--line); margin: 6px 0 12px; }
+  #status b { color: var(--deep); }
+  #status .err { color: var(--red); font-weight: 700; }
+  .stage { background: #fff; border: 1.5px solid var(--line); border-radius: 16px; overflow: hidden; width: min(880px, 96vw); }
+  .stage h3 { font-size: 14px; padding: 9px 13px; background: #F2F6F0; display: flex; justify-content: space-between; }
+  #cvSkeleton { width: 100%; height: 520px; display: block; background: #fff; }
+  video#cam { display: none; }
+  #diag { font-size: 12.5px; color: #667; margin-top: 10px; font-family: ui-monospace, monospace; }
+</style>
+<script type="module">
+  import { createDetector, SupportedModels } from "https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/+esm";
+  import * as tf from "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/+esm";
+
+  const $ = (id) => document.getElementById(id);
+  const statusEl = $("status"), diagEl = $("diag"), canvas = $("cvSkeleton"), video = $("cam");
+  const ctx = canvas.getContext("2d");
+
+  // MoveNet (COCO) skeleton connections by keypoint index.
+  const CONNECTIONS = [[0,1],[0,2],[1,3],[2,4],[5,6],[5,7],[7,9],[6,8],[8,10],[5,11],[6,12],[11,12],[11,13],[13,15],[12,14],[14,16]];
+  const MIN_SCORE = 0.3;
+
+  const S = { detector: null, running: false, frames: 0, personFrames: 0, since: Date.now(), errs: 0 };
+  const setStatus = (html) => { statusEl.innerHTML = html; };
+
+  // keypoints arrive in source-pixel coordinates; scale them to the canvas.
+  function drawSkeleton(kps, srcW, srcH) {
+    const r = canvas.getBoundingClientRect();
+    if (canvas.width !== Math.round(r.width)) { canvas.width = Math.round(r.width); canvas.height = 520; }
+    const W = canvas.width, H = canvas.height;
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+    if (!kps || !srcW) return;
+    const sx = W / srcW, sy = H / srcH, s = Math.min(sx, sy);
+    const ox = (W - srcW * s) / 2, oy = (H - srcH * s) / 2;
+    ctx.strokeStyle = "#2F5D43"; ctx.lineWidth = 5; ctx.lineCap = "round";
+    for (const [a, b] of CONNECTIONS) {
+      const p = kps[a], q = kps[b];
+      if (!p || !q || p.score < MIN_SCORE || q.score < MIN_SCORE) continue;
+      ctx.beginPath(); ctx.moveTo(ox + p.x * s, oy + p.y * s); ctx.lineTo(ox + q.x * s, oy + q.y * s); ctx.stroke();
+    }
+    ctx.fillStyle = "#B4652F";
+    for (const p of kps) {
+      if (!p || p.score < MIN_SCORE) continue;
+      ctx.beginPath(); ctx.arc(ox + p.x * s, oy + p.y * s, 5, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  async function ensureDetector() {
+    if (S.detector) return S.detector;
+    await tf.setBackend("cpu");
+    await tf.ready();
+    S.detector = await createDetector(SupportedModels.MoveNet, { modelType: "SinglePose.Lightning" });
+    return S.detector;
+  }
+
+  // Live loop: errors are counted, never thrown into the loop; the loop
+  // itself can never die.
+  function tick() {
+    requestAnimationFrame(tick);
+    if (!S.running || !S.detector || video.readyState < 2) return;
+    S.detector.estimatePoses(video, { flipHorizontal: false }).then((poses) => {
+      if (!S.running) return;
+      const kps = poses && poses[0] && poses[0].keypoints;
+      if (kps) S.personFrames++;
+      S.frames++;
+      drawSkeleton(kps, video.videoWidth, video.videoHeight);
+      const now = Date.now();
+      if (now - S.since >= 2000) {
+        diagEl.textContent = `inference ${Math.round(S.frames * 1000 / (now - S.since))}/s · person in ${S.personFrames} of last ${S.frames} frames · backend ${tf.getBackend()}`;
+        S.frames = 0; S.personFrames = 0; S.since = now;
+      }
+    }).catch((e) => {
+      if (++S.errs <= 3) diagEl.textContent = "frame skipped: " + String(e && e.message || e).slice(0, 90);
+    });
+  }
+
+  async function start() {
+    try {
+      setStatus("Loading pose model (one-time download, runs on CPU)…");
+      await ensureDetector();
+      setStatus("Opening camera… (video stays on this device, never uploaded)");
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
+      video.srcObject = stream;
+      await video.play();
+      S.running = true;
+      setStatus("<b>Tracking live.</b> Step back so your whole body is in shot. Only the skeleton is shown.");
+      tick();
+    } catch (e) {
+      setStatus(`<span class="err">Could not start: ${e.message || e}</span><br>Camera needs HTTPS or localhost, permission, and internet for the one-time model download.`);
+    }
+  }
+
+  // Detection proof on a still photo (sample.jpg next to this file) — the
+  // same model that runs on the camera, no camera needed.
+  async function sampleTest() {
+    try {
+      setStatus("Loading model for the sample-image test…");
+      await ensureDetector();
+      const img = new Image();
+      img.src = "sample.jpg";
+      await img.decode();
+      const poses = await S.detector.estimatePoses(img, { flipHorizontal: false });
+      const kps = poses && poses[0] && poses[0].keypoints;
+      drawSkeleton(kps, img.naturalWidth, img.naturalHeight);
+      if (kps) {
+        const confident = kps.filter((p) => p.score >= MIN_SCORE).length;
+        setStatus(`<b>Sample test: person detected</b> — ${confident} of ${kps.length} keypoints confident (score ≥ ${MIN_SCORE}), skeleton drawn above. The same model runs on your camera.`);
+      } else {
+        setStatus("Sample test: no pose found in sample.jpg. The detection pipeline ran without errors.");
+      }
+    } catch (e) {
+      setStatus(`<span class="err">Sample test failed: ${e.message || e}</span>`);
+    }
+  }
+
+  $("btnStart").onclick = start;
+  $("btnSample").onclick = sampleTest;
+  window.__poc = { S, drawSkeleton };
+</script>
+</head>
+<body>
+  <h1>Skeleton POC — one camera</h1>
+  <p class="sub">Your camera runs pose tracking locally in this page. Only a skeleton on a white background is shown —<br>you and your background never appear, and no video ever leaves this device.</p>
+  <video id="cam" playsinline muted></video>
+  <div class="row">
+    <button id="btnStart">Start Camera</button>
+    <button id="btnSample" class="ghost">Test detection on a sample photo</button>
+  </div>
+  <div id="status">Press <b>Start Camera</b>. Needs camera permission and internet for the one-time model download.</div>
+  <div class="stage"><h3><span>Live skeleton</span><span>white background · skeleton only</span></h3><canvas id="cvSkeleton"></canvas></div>
+  <div id="diag">waiting to start…</div>
+  <p class="sub">Sample photo: “Woman doing Yoga in Russia”, Wikimedia Commons (CC BY).</p>
+</body>
+</html>

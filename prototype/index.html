@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Muse Yoga — End-to-End Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#EAF0E9;--surface:#fff;--soft:#F2F6F0;--ink:#223129;--ink2:#3E5744;--line:#D8E2D4;--sage:#7FA38B;--deep:#2F5D43;--deep2:#24493A;--clay:#B4652F;--claybg:#FAEDE2;--amber:#8A5E04;--amberbg:#FBF0D2;--red:#B23B2C;--redbg:#FBEAE6;--r:20px;--sh:0 10px 28px rgba(46,74,56,.09)}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{font-family:"Outfit",system-ui,sans-serif;background:linear-gradient(160deg,var(--bg),#F4F7F1 60%,#DEE9DC);color:var(--ink);height:100dvh;overflow:hidden}
+.display{font-family:"Fraunces",Georgia,serif;font-weight:600}
+button{font:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font:inherit;color:inherit}
+a{color:var(--deep);font-weight:700;text-decoration:none;cursor:pointer}
+.app{height:100dvh;display:flex;flex-direction:column;max-width:1480px;margin:0 auto;padding:14px 22px}
+.screen{display:none;flex:1;min-height:0;flex-direction:column}
+.screen.active{display:flex}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 22px;border-radius:999px;font-weight:700;font-size:15px;background:var(--deep);color:#fff;box-shadow:0 8px 18px rgba(47,93,67,.24)}
+.btn:hover{background:var(--deep2)}
+.btn.ghost{background:#fff;color:var(--deep);border:1.5px solid var(--sage);box-shadow:none}
+.btn.light{background:var(--soft);color:var(--ink2);border:1px solid var(--line);box-shadow:none}
+.btn.small{padding:8px 15px;font-size:13.5px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;background:#DCE8D8;border:1px solid #C4D6C2;color:#2F4A37;font-size:12.5px;font-weight:800}
+.chip.amber{background:var(--amberbg);border-color:#EAD9A8;color:var(--amber)}
+.chip.clay{background:var(--claybg);border-color:#EBCDB2;color:var(--clay)}
+.chip.red{background:var(--redbg);border-color:#F0C6BD;color:var(--red)}
+.muted{color:var(--ink2)}
+.center{flex:1;display:grid;place-items:center;min-height:0}
+.authcard{width:min(480px,94vw);padding:38px 40px;text-align:left}
+.authcard h1{font-size:34px;margin:8px 0 6px}
+.authcard p.sub{color:var(--ink2);line-height:1.55;margin-bottom:22px}
+.field{margin-bottom:15px}
+.field label{display:block;font-size:13px;font-weight:800;color:var(--ink2);margin-bottom:6px}
+.field input,.field select,.field textarea{width:100%;padding:12px 15px;border:1.5px solid var(--line);border-radius:12px;background:var(--soft);outline:none}
+.field input:focus,.field textarea:focus{border-color:var(--sage);background:#fff}
+.otp{display:flex;gap:9px}
+.otp input{width:48px;height:54px;text-align:center;font-size:21px;font-weight:800;padding:0}
+.note{border-radius:13px;padding:13px 16px;font-size:13.5px;line-height:1.55;margin:14px 0}
+.note.amber{background:var(--amberbg);color:#6E5205;border:1px solid #EAD9A8}
+.note.sage{background:#E7F0E7;color:var(--deep);border:1px solid #CBE0D2}
+.note.red{background:var(--redbg);color:var(--red);border:1px solid #F0C6BD}
+.topnav{flex:none;display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--sh);padding:10px 16px;margin-bottom:14px}
+.appname{font-size:21px;color:var(--deep);white-space:nowrap;margin-right:8px}
+.navbtn{padding:9px 15px;border-radius:999px;font-weight:700;font-size:14px;color:var(--ink2)}
+.navbtn:hover{background:var(--soft)}
+.navbtn.on{background:var(--deep);color:#fff}
+.topnav .right{margin-left:auto;display:flex;gap:9px;align-items:center}
+.pagehead{display:flex;align-items:end;gap:16px;margin:2px 2px 14px;flex:none}
+.pagehead h2{font-size:31px;line-height:1.05}
+.pagehead p{color:var(--ink2);margin-top:5px}
+.pagehead .sp{flex:1}
+.searchbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;flex:none}
+.searchbar input{flex:1;min-width:210px;padding:11px 16px;border:1.5px solid var(--line);border-radius:999px;background:#fff;outline:none}
+.searchbar select{padding:11px 14px;border:1.5px solid var(--line);border-radius:999px;background:#fff;font-weight:600;color:var(--ink2)}
+.gridcards{flex:1;min-height:0;display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-content:start}
+.acard{overflow:hidden;display:flex;flex-direction:column}
+.acard img{height:158px;width:100%;object-fit:cover;display:block;background:#E3EFE5}
+.acard .b{padding:15px 17px 17px;display:flex;flex-direction:column;gap:7px;flex:1}
+.acard h3{font-size:20px}
+.acard .meta{font-size:13px;color:var(--ink2);font-weight:600}
+.acard .row{margin-top:auto;display:flex;gap:8px;align-items:center;padding-top:8px}
+.heart{width:38px;height:38px;border-radius:50%;border:1.5px solid var(--line);background:#fff;font-size:17px;color:var(--clay);display:grid;place-items:center;flex:none}
+.pager{flex:none;display:flex;justify-content:center;gap:8px;align-items:center;padding-top:13px;color:var(--ink2);font-weight:700;font-size:13px}
+.pager i{width:9px;height:9px;border-radius:50%;background:#C9D8C6;display:block}
+.pager i.on{background:var(--deep)}
+.listrows{flex:1;min-height:0;display:flex;flex-direction:column;gap:12px}
+.prow{display:flex;align-items:center;gap:16px;padding:16px 20px}
+.prow img{width:92px;height:66px;object-fit:cover;border-radius:11px;flex:none}
+.prow h3{font-size:19px}.prow p{color:var(--ink2);font-size:13.5px;margin-top:3px;line-height:1.45}
+.prow .acts{margin-left:auto;display:flex;gap:8px;flex:none;flex-wrap:wrap;justify-content:flex-end}
+.detail{flex:1;min-height:0;display:grid;grid-template-columns:1.05fr .95fr;gap:16px}
+.detail .l,.detail .r{padding:24px 26px;overflow:hidden}
+.detail h2{font-size:36px;line-height:1.05}
+.steplist{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.steprow{display:flex;gap:13px;background:var(--soft);border:1px solid var(--line);border-radius:14px;padding:11px 13px;align-items:center}
+.steprow img{width:74px;height:54px;object-fit:cover;border-radius:9px;flex:none}
+.steprow b{font-size:14px}.steprow p{font-size:13px;color:var(--ink2);line-height:1.45}
+.wizard{flex:1;min-height:0;display:grid;grid-template-columns:290px 1fr;gap:16px}
+.wiznav{padding:22px}
+.wiznav .st{display:flex;gap:11px;align-items:flex-start;padding:11px 0;color:var(--ink2);font-weight:600;font-size:14.5px}
+.wiznav .st .n{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--line);background:#fff;display:grid;place-items:center;font-size:12.5px;font-weight:800;flex:none}
+.wiznav .st.now{color:var(--deep)} .wiznav .st.now .n{background:var(--deep);border-color:var(--deep);color:#fff}
+.wiznav .st.done .n{background:#DCE8D8;border-color:#DCE8D8;color:var(--deep)}
+.wizmain{padding:26px 30px;display:flex;flex-direction:column;min-height:0}
+.wizmain h2{font-size:29px;margin-bottom:8px}
+.chargrid{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin:14px 0}
+.char{border:2px solid var(--line);border-radius:16px;overflow:hidden;background:#fff;text-align:left;padding:0}
+.char img{width:100%;height:128px;object-fit:cover;display:block;background:#E3EFE5}
+.char span{display:block;padding:9px 12px;font-weight:800;font-size:14px}
+.char.sel{border-color:var(--deep);box-shadow:0 0 0 3px #CBE0D2}
+.progress{height:11px;background:#E4EDE2;border-radius:99px;overflow:hidden;margin:12px 0}
+.progress i{display:block;height:100%;background:var(--deep);border-radius:99px;transition:width .5s ease}
+.checkline{display:flex;gap:10px;align-items:center;padding:9px 0;font-weight:600}
+.checkline .ok{color:var(--deep);font-weight:800}
+table.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{text-align:left;color:var(--ink2);font-size:12px;letter-spacing:.06em;text-transform:uppercase;padding:9px 10px;border-bottom:1.5px solid var(--line)}
+.tbl td{padding:11px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;flex:1;min-height:0}
+.cal .dow{font-size:11.5px;font-weight:800;color:var(--ink2);text-align:center;letter-spacing:.07em}
+.cal .day{background:#fff;border:1px solid var(--line);border-radius:12px;padding:9px 11px;font-weight:700;position:relative;text-align:left;min-height:0}
+.cal .day:hover{border-color:var(--sage)}
+.cal .day.dim{opacity:.38}
+.cal .day.sel{border-color:var(--deep);box-shadow:0 0 0 2.5px #CBE0D2}
+.cal .day .dot{position:absolute;bottom:9px;left:11px;width:8px;height:8px;border-radius:50%;background:var(--clay)}
+.cal .day .cnt{position:absolute;bottom:6px;right:9px;font-size:11px;color:var(--clay);font-weight:800}
+.tabs{display:flex;gap:8px;flex:none;margin-bottom:14px;flex-wrap:wrap}
+.tab{padding:10px 18px;border-radius:999px;background:#fff;border:1.5px solid var(--line);font-weight:700;color:var(--ink2)}
+.tab.on{background:var(--deep);border-color:var(--deep);color:#fff}
+.modalwrap{position:fixed;inset:0;background:rgba(18,30,22,.55);display:none;place-items:center;z-index:50;padding:20px}
+.modalwrap.show{display:grid}
+.modal{width:min(620px,96vw);padding:28px 30px;max-height:92dvh}
+.modal h3{font-size:25px;margin-bottom:8px}
+.flowfoot{flex:none;display:flex;gap:10px;align-items:center;padding-top:16px}
+.flowfoot .sp{flex:1}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--deep2);color:#fff;padding:13px 22px;border-radius:999px;font-weight:700;font-size:14.5px;opacity:0;pointer-events:none;transition:.3s;z-index:60;box-shadow:0 14px 34px rgba(0,0,0,.3)}
+.toast.show{opacity:1;transform:translateX(-50%)}
+body.immersive .topnav{display:none}
+body.preauth .topnav .navbtn,body.preauth .topnav .right{display:none}
+.pstrip{position:relative;flex:none;display:flex;align-items:center;gap:14px;padding:9px 16px;background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--sh);color:var(--ink);margin-bottom:12px}
+.pstrip .appname2{font-size:20px;color:var(--deep);white-space:nowrap}
+.pstrip .atitle{position:absolute;left:50%;transform:translateX(-50%);text-align:center;white-space:nowrap}
+.pstrip .atitle h1{font-size:21px;line-height:1}
+.pstrip .atitle p{font-size:12px;color:var(--ink2);font-weight:700;margin-top:2px}
+.stagewrap{flex:1;min-height:0;display:flex;flex-direction:column}
+.splitstage{position:relative;flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;border-radius:22px;overflow:hidden;box-shadow:var(--sh)}
+.half{position:relative;overflow:hidden;min-width:0}
+.half.cam{background:#2C4636;color:#fff}
+.half.ref{background:#EDF2E9}
+.half svg.scene{position:absolute;inset:0;width:100%;height:100%}
+.divider2{position:absolute;top:0;bottom:0;left:50%;width:3px;background:rgba(255,255,255,.85);transform:translateX(-50%);z-index:3}
+.tagrow{position:absolute;top:14px;left:14px;display:flex;gap:8px;z-index:4;flex-wrap:wrap}
+.tag{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:999px;background:rgba(11,22,15,.86);border:1px solid rgba(255,255,255,.34);backdrop-filter:blur(7px);font-size:13.5px;font-weight:800;color:#fff}
+.tag b.dotlive{width:8px;height:8px;border-radius:50%;background:#FF7A5C}
+.tag.ok{color:#D9F6E0}.tag.bad{background:rgba(94,62,4,.94);color:#FFEFC0}
+.refimg2{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.refcap2{position:absolute;left:14px;right:14px;bottom:14px;z-index:4;background:rgba(255,255,255,.985);border-radius:14px;padding:11px 15px;box-shadow:0 12px 28px rgba(20,35,26,.25)}
+.refcap2 .lab{font-size:11.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#3E5744;display:flex;justify-content:space-between}
+.refcap2 .lab em{font-style:normal;color:#8F4B1C}
+.refcap2 p{font-size:15.5px;font-weight:650;line-height:1.5;margin-top:4px;color:#1E3325}
+.refcap2 p span{color:#3E5744;font-weight:600}
+.film2{position:absolute;left:14px;bottom:14px;z-index:4;display:flex;gap:10px}
+.thumb2{width:132px;background:rgba(11,22,15,.86);border:1px solid rgba(255,255,255,.34);backdrop-filter:blur(6px);border-radius:13px;padding:7px;color:#fff}
+.thumb2 .view{height:60px;border-radius:8px;background:#3C5A47;position:relative;overflow:hidden}
+.thumb2 .view svg{position:absolute;inset:0;width:100%;height:100%}
+.thumb2 .nm{display:flex;justify-content:space-between;font-size:11.5px;font-weight:800;margin-top:6px}
+.thumb2 .nm span:last-child{color:#DCE9DC;font-weight:700}
+.thumb2 .fr{font-size:11.5px;font-weight:800;margin-top:2px;color:#C9F2D2}
+.thumb2.bad .fr{color:var(--amber)}
+.thumb2 .sw{margin-top:6px;width:100%;padding:6px;border-radius:999px;border:1px solid rgba(255,255,255,.34);font-size:11.5px;font-weight:800;color:#fff;background:rgba(255,255,255,.2)}
+.thumb2 .sw.queued{background:var(--amber);color:#3D2E05;border-color:var(--amber)}
+.countband{flex:none;display:flex;align-items:center;justify-content:center;gap:26px;background:#10201A;color:#fff;padding:8px 22px 10px;border-radius:0 0 22px 22px;margin-top:-6px;position:relative;z-index:5}
+.countband .num2{font-family:"Fraunces",Georgia,serif;font-size:clamp(54px,10vh,82px);line-height:1}
+.countband .stack{text-align:left}
+.countband .clbl{font-size:13px;font-weight:800;letter-spacing:.24em;text-transform:uppercase;color:#FFE1A6}
+.countband .paused2{font-size:clamp(21px,3.6vh,30px);line-height:1.2;font-family:"Fraunces",Georgia,serif}
+.dots2{display:flex;gap:9px;align-items:center;font-size:13.5px;font-weight:800;margin-top:5px}
+.dots2 i{width:13px;height:13px;border-radius:50%;border:2.5px solid #D8EBDC;display:block}
+.dots2 i.full{background:#fff;border-color:#fff}
+.dots2 i.held{border-color:var(--amber);background:rgba(233,196,106,.4)}
+.banner2{position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:7;width:min(720px,94vw);display:none;background:var(--amber);color:#3D2E05;border-radius:17px;padding:15px 21px;box-shadow:0 18px 44px rgba(0,0,0,.42);text-align:center}
+.banner2.show{display:block}
+.banner2 h2{font-size:clamp(24px,4.2vh,33px);line-height:1.1}
+.banner2 p{font-size:15px;font-weight:600;line-height:1.5;margin-top:4px}
+.endbtn2{position:absolute;right:14px;top:14px;z-index:6;padding:10px 17px;border-radius:999px;background:rgba(11,22,15,.86);border:1px solid rgba(255,255,255,.34);color:#fff;font-weight:700;font-size:13.5px}
+.devrow{display:flex;align-items:center;gap:15px;padding:15px 19px}
+.devrow .ic{width:46px;height:46px;border-radius:13px;background:var(--soft);border:1px solid var(--line);display:grid;place-items:center;font-size:21px;flex:none}
+.resultstep{display:flex;gap:16px;padding:16px 19px;align-items:flex-start;cursor:pointer;text-align:left;width:100%;transition:box-shadow .18s ease,transform .18s ease}
+.resultstep:hover{box-shadow:0 14px 34px rgba(46,74,56,.16);transform:translateY(-1px)}
+.resultstep img{width:112px;height:82px;object-fit:cover;border-radius:11px;flex:none}
+.resultstep .tap{margin-left:auto;flex:none;font-size:12.5px;font-weight:800;color:var(--deep);white-space:nowrap;padding-top:3px}
+.annotwrap{position:relative;border-radius:16px;overflow:hidden;background:#E3EFE5}
+.annotwrap img{width:100%;height:min(52dvh,470px);object-fit:cover;display:block}
+.annotwrap svg.marks{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.marklbl{position:absolute;transform:translate(-50%,-130%);background:#B23B2C;color:#fff;font-size:12px;font-weight:800;padding:5px 10px;border-radius:999px;white-space:nowrap;box-shadow:0 6px 16px rgba(0,0,0,.28)}
+.verdict{font-size:18px;font-weight:800}.verdict.ok{color:var(--deep)}.verdict.no{color:var(--red)}
+@media (max-width:1000px){.gridcards{grid-template-columns:repeat(2,1fr)}.detail,.wizard{grid-template-columns:1fr}.pstrip .atitle{display:none}}
+</style>
+</head>
+<body>
+<div class="app" id="appRoot">
+<nav class="topnav" id="topnav">
+  <span class="appname display">Muse Yoga</span>
+  <button class="navbtn" data-nav="public" onclick="go('public')">Public Library</button>
+  <button class="navbtn" data-nav="personal" onclick="go('personal')">My Asanas</button>
+  <button class="navbtn" data-nav="favourites" onclick="go('favourites')">Favourites</button>
+  <button class="navbtn" data-nav="history" onclick="go('history')">History</button>
+  <button class="navbtn" data-nav="create" onclick="go('create')">Create Asana</button>
+  <button class="navbtn" data-nav="admin" onclick="go('admin')">Admin</button>
+  <div class="right"><span class="chip">Priya</span><button class="btn ghost small" onclick="go('login');toast('Signed out (prototype)')">Logout</button></div>
+</nav>
+
+<!-- LOGIN -->
+<section class="screen" id="s-login">
+  <div class="center"><div class="card authcard">
+    <div class="appname display" style="font-size:24px">Muse Yoga</div>
+    <h1 class="display">Welcome back</h1>
+    <p class="sub">Sign in with your email. We will send you a code — no password, ever.</p>
+    <div id="loginStep1">
+      <div class="field"><label>Email</label><input id="loginEmail" value="priya@example.com"></div>
+      <button class="btn" style="width:100%" onclick="sendOtp('login')">Send sign-in code</button>
+      <p class="muted" style="margin-top:16px;font-size:14px">New to Muse Yoga? <a onclick="go('register')">Create an account</a></p>
+      <div class="note sage">Prototype: any email works, the code step accepts anything. Try “blocked@example.com” on the code step to see the blocked state.</div>
+    </div>
+    <div id="loginStep2" style="display:none">
+      <div class="field"><label>Enter the 6-digit code sent to your email</label>
+        <div class="otp"><input maxlength="1" value="4"><input maxlength="1" value="8"><input maxlength="1" value="2"><input maxlength="1"><input maxlength="1"><input maxlength="1"></div></div>
+      <p class="muted" style="font-size:13.5px;margin-bottom:14px">Attempts left: <b>3</b> · 3 failed attempts locks the account for 6 hours.</p>
+      <button class="btn" style="width:100%" onclick="verifyLogin()">Verify &amp; sign in</button>
+      <div id="loginError"></div>
+      <p style="margin-top:14px;font-size:14px"><a onclick="document.getElementById('loginStep2').style.display='none';document.getElementById('loginStep1').style.display='block'">← Use a different email</a> · <a onclick="toast('A new code was sent (prototype)')">Resend code</a></p>
+    </div>
+  </div></div>
+</section>
+
+<!-- REGISTER -->
+<section class="screen" id="s-register">
+  <div class="center"><div class="card authcard" style="width:min(560px,94vw)">
+    <div class="appname display" style="font-size:24px">Muse Yoga</div>
+    <h1 class="display" style="font-size:31px">Create your account</h1>
+    <p class="sub">Tell us a little about you, then verify your email with a code.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="field"><label>First name</label><input value="Priya"></div>
+      <div class="field"><label>Last name</label><input value="Sharma"></div>
+    </div>
+    <div class="field"><label>Email</label><input value="priya@example.com"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="field"><label>Age</label><input value="34"></div>
+      <div class="field"><label>ZIP code</label><input value="560001"></div>
+    </div>
+    <div class="note amber"><b>Please read:</b> you can request at most <b>3 codes for this email, ever</b>. If all 3 are used without completing registration, the email is permanently blocked. Codes used: <b>0 of 3</b>.</div>
+    <button class="btn" style="width:100%" onclick="toast('Verification code sent (prototype)');go('login');sendOtp('login')">Send verification code</button>
+    <p class="muted" style="margin-top:14px;font-size:14px">Already registered? <a onclick="go('login')">Sign in</a></p>
+  </div></div>
+</section>
+<!-- PUBLIC LIBRARY -->
+<section class="screen" id="s-public">
+  <div class="pagehead"><div><h2 class="display">Public Library</h2><p>Asanas for everyone. Search, filter, and start when ready.</p></div><div class="sp"></div><button class="btn" onclick="startGeneric()">▶ Start Practice</button></div>
+  <div class="searchbar"><input id="pubSearch" placeholder="Search asana name… try “Vrikshasana”" oninput="filterPub()"><select onchange="filterPub()" id="pubDiff"><option>All difficulties</option><option>Beginner</option><option>Advanced</option></select></div>
+  <div class="gridcards" id="pubGrid"></div>
+  <div class="note sage" id="pubEmpty" style="display:none;flex:none">No asanas match your search and filters. <a onclick="document.getElementById('pubSearch').value='';document.getElementById('pubDiff').selectedIndex=0;filterPub()">Clear search &amp; filters</a></div>
+  <div class="pager"><span>Page 1 of 1</span><i class="on"></i><span>· 6 asanas</span></div>
+</section>
+
+<!-- PERSONAL LIBRARY -->
+<section class="screen" id="s-personal">
+  <div class="pagehead"><div><h2 class="display">My Asanas</h2><p>Your personal library. Only you can see these.</p></div><div class="sp"></div><button class="btn" onclick="go('create')">+ Create Asana</button></div>
+  <div class="gridcards" style="grid-template-columns:repeat(4,1fr)">
+    <div class="card acard"><img src="../asanas/public/chakrasana/chakrasana_step_1.png" alt=""><div class="b"><h3 class="display">Chakrasana</h3><span class="chip">Active</span><div class="meta">Advanced · Backbend · 4 steps</div><div class="muted" style="font-size:12.5px">Created by you</div><div class="row" style="flex-wrap:wrap"><button class="btn small" style="flex:1" onclick="openDetail(this.closest('.acard').querySelector('h3').textContent,'personal')">View</button><button class="btn ghost small" onclick="startPractice('Chakrasana','personal')">Practise</button><button class="btn light small" onclick="openModal('submitModal')">Submit</button><button class="btn light small" onclick="toast('Asana disabled. Hidden from practice and favourites.')">Disable</button></div></div></div>
+    <div class="card acard"><img src="../POC/outputs/b/final/step1.png" alt=""><div class="b"><h3 class="display">Tāḍāsana</h3><span class="chip amber">Pending approval</span><div class="meta">Beginner · Standing · 3 steps</div><div class="muted" style="font-size:12.5px">Submitted 28 Oct · can practise / withdraw</div><div class="row" style="flex-wrap:wrap"><button class="btn small" style="flex:1" onclick="openDetail(this.closest('.acard').querySelector('h3').textContent,'personal')">View</button><button class="btn ghost small" onclick="startPractice('Tāḍāsana','personal')">Practise</button><button class="btn light small" onclick="toast('Submission withdrawn. Asana is Active again.')">Withdraw</button></div></div></div>
+    <div class="card acard" style="opacity:.78"><img src="../POC/outputs/b/final/step3.png" alt=""><div class="b"><h3 class="display">Bhujangasana</h3><span class="chip">Disabled</span><div class="meta">Beginner · Backbend · 3 steps</div><div class="muted" style="font-size:12.5px">Hidden from practice &amp; favourites</div><div class="row" style="flex-wrap:wrap"><button class="btn small" style="flex:1" onclick="openDetail(this.closest('.acard').querySelector('h3').textContent,'personal')">View</button><button class="btn ghost small" onclick="toast('Asana re-enabled')">Re-enable</button></div></div></div>
+    <div class="card acard"><img src="../POC/outputs/b/final/step4.png" alt=""><div class="b"><h3 class="display">Vṛkṣāsana</h3><span class="chip red">Rejected</span><div class="meta">Beginner · Balance · 2 steps</div><div class="muted" style="font-size:12.5px">Cannot be edited or resubmitted — see View for reason</div><div class="row" style="flex-wrap:wrap"><button class="btn small" style="flex:1" onclick="openDetail(this.closest('.acard').querySelector('h3').textContent,'personal')">View</button><button class="btn light small" onclick="toast('Asana disabled')">Disable</button></div></div></div>
+  </div>
+  <div class="pager"><span>4 asanas · Page 1 of 1</span><i class="on"></i></div>
+</section>
+
+<!-- ASANA DETAIL -->
+<section class="screen" id="s-detail">
+  <div class="pagehead"><button class="btn light" id="detailBack" onclick="go(detailOrigin)">← Public Library</button><div><h2 class="display">Chakrasana</h2><p id="detailOriginLbl">Public Library · Submitted by Priya</p></div><div class="sp"></div><button class="heart" title="Add to favourites" onclick="openModal('favModal')">♥</button><button class="btn ghost" onclick="openModal('feedbackModal')">Give Feedback</button><button class="btn" id="detailStart" onclick="startPractice(document.querySelector('#s-detail .pagehead h2').textContent,detailOrigin,true)">▶ Start Practice</button></div>
+  <div class="detail">
+    <div class="card l">
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><span class="chip">Advanced</span><span class="chip">Back &amp; Spine</span><span class="chip">Backbend</span><span class="chip clay">Character: Boy</span></div>
+      <h3 style="margin-top:20px;font-size:19px">Benefits</h3>
+      <p class="muted" style="line-height:1.6;margin-top:6px">Strengthens arms, wrists, legs and spine. Stretches chest, lungs, abdomen and hip flexors. Increases spinal flexibility and energy.</p>
+      <div class="note amber" style="margin-top:18px"><b>⚠ Cautions — do not practise if you have:</b> back or neck injury · wrist injury or carpal tunnel · high/low blood pressure · heart conditions · pregnancy.</div>
+      <p class="muted" style="font-size:13.5px;line-height:1.6">These steps and images are stored once and reused in every practice. They are never regenerated, and nothing here can be typed over — corrections go through Feedback only.</p>
+      <div class="note sage" id="detailSample" style="display:none">Prototype note: step images and text shown are the Chakrasana sample set for every asana in this mock.</div>
+    </div>
+    <div class="card r">
+      <h3 style="font-size:19px">Steps <span class="muted" style="font-size:14px;font-weight:600">· 4 steps · shown in coaching exactly as here</span></h3>
+      <div class="steplist">
+        <div class="steprow"><img src="../POC/outputs/b/final/step1.png" alt=""><div><b>Step 1 · 20s</b><p>Lie on your back, knees bent, feet flat and hip-width apart. Arms relaxed by your sides.</p></div></div>
+        <div class="steprow"><img src="../POC/outputs/b/final/step2.png" alt=""><div><b>Step 2 · 15s</b><p>Palms flat beside your ears, fingers toward shoulders. Feet parallel, knees over ankles.</p></div></div>
+        <div class="steprow"><img src="../POC/outputs/b/final/step3.png" alt=""><div><b>Step 3 · 15s</b><p>Press into your feet and lift hips, then press into hands to lift head and chest.</p></div></div>
+        <div class="steprow"><img src="../POC/outputs/b/final/step4.png" alt=""><div><b>Step 4 · 30s</b><p>Straighten arms and legs into Wheel Pose. Breathe steadily, gaze between your hands.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+<!-- CREATE ASANA -->
+<section class="screen" id="s-create">
+  <div class="pagehead"><div><h2 class="display">Create Asana</h2><p>AI creates the steps and images. You review — nothing is typed by hand.</p></div></div>
+  <div class="wizard">
+    <aside class="card wiznav" id="wizNav">
+      <div class="st now" data-w="1"><span class="n">1</span>Name &amp; character</div>
+      <div class="st" data-w="2"><span class="n">2</span>Checks</div>
+      <div class="st" data-w="3"><span class="n">3</span>Review steps</div>
+      <div class="st" data-w="4"><span class="n">4</span>Generate images</div>
+      <div class="st" data-w="5"><span class="n">5</span>Review &amp; feedback</div>
+      <div class="st" data-w="6"><span class="n">6</span>Save</div>
+      <div class="note sage" style="margin-top:16px">As an <b>admin</b> your asana goes to the Public Library. As a regular user it goes to My Asanas, and must exist in a reference book.</div>
+    </aside>
+    <div class="card wizmain">
+      <div class="wizpane" data-p="1">
+        <h2 class="display">Name &amp; character</h2>
+        <div class="field" style="max-width:480px"><label>Asana name</label><input id="createName" value="Chakrasana"></div>
+        <label style="font-size:13px;font-weight:800;color:var(--ink2)">Choose your character — default characters first. The same character appears in every step.</label>
+        <div class="chargrid">
+          <button class="char sel" onclick="selChar(this)"><img src="../characters/default/character_for_yoga_pose_boy.png" alt=""><span>Boy · Default</span></button>
+          <button class="char" onclick="selChar(this)"><img src="../characters/default/character_for_yoga_pose_girl.png" alt=""><span>Girl · Default</span></button>
+          <button class="char" onclick="selChar(this)"><img src="../POC/outputs/b/final/step1.png" alt=""><span>Man · Studio</span></button>
+          <button class="char" onclick="selChar(this)"><img src="../POC/outputs/b/final/step3.png" alt=""><span>Woman · Studio</span></button>
+        </div>
+        <div class="flowfoot"><span class="muted" style="font-size:13.5px">You cannot choose the number of steps or edit instructions.</span><span class="sp"></span><button class="btn" onclick="wiz(2);runChecks()">Check &amp; Generate Steps →</button></div>
+      </div>
+      <div class="wizpane" data-p="2" style="display:none">
+        <h2 class="display">Checking…</h2>
+        <div id="checkList">
+          <div class="checkline"><span class="ok">✓</span> Found in reference book — Common Yoga Protocol (Ardha Cakrāsana family)</div>
+          <div class="checkline"><span class="ok">✓</span> Name not already in Public Library as your personal copy</div>
+          <div class="checkline" id="genStepsLine"><span>◌</span> Generating step-by-step instructions… (~6 seconds)</div>
+        </div>
+        <div class="note amber">If this asana were <b>not</b> in any reference book, a regular user would be stopped here. Admins see a note and may continue.</div>
+        <div class="flowfoot"><button class="btn light" onclick="wiz(1)">← Back</button><span class="sp"></span><button class="btn" id="toReviewBtn" disabled onclick="wiz(3)">Review Steps →</button></div>
+      </div>
+      <div class="wizpane" data-p="3" style="display:none">
+        <h2 class="display">Review steps <span class="chip">Advanced</span> <span class="chip">Back &amp; Spine</span> <span class="chip">Backbend</span></h2>
+        <div class="steplist">
+          <div class="steprow"><div><b>Step 1 · 20s</b><p>Lie on your back, knees bent, feet flat, hip-width apart.</p></div></div>
+          <div class="steprow"><div><b>Step 2 · 15s</b><p>Palms flat beside your ears, fingers toward shoulders.</p></div></div>
+          <div class="steprow"><div><b>Step 3 · 15s</b><p>Press into feet and lift hips; press into hands to lift head and chest.</p></div></div>
+          <div class="steprow"><div><b>Step 4 · 30s</b><p>Straighten arms and legs into Wheel Pose, breathe steadily.</p></div></div>
+        </div>
+        <p class="muted" style="margin-top:12px;font-size:14px">Read-only. To change anything, use Feedback after images are generated.</p>
+        <div class="flowfoot"><button class="btn light" onclick="wiz(2)">← Back</button><span class="sp"></span><button class="btn" onclick="wiz(4);runGen()">Generate Images →</button></div>
+      </div>
+      <div class="wizpane" data-p="4" style="display:none">
+        <h2 class="display">Generating images</h2>
+        <p class="muted" style="line-height:1.6">One image per step with your character, checked automatically (same character? one head, two arms, two legs? pose matches?). This usually takes <b>1–2 minutes</b> — please keep this tab open.</p>
+        <div class="progress"><i id="genBar" style="width:4%"></i></div>
+        <div id="genList"></div>
+        <div class="flowfoot"><button class="btn light" onclick="toast('Generation cancelled. Nothing was saved.')">Cancel creation</button><span class="sp"></span><button class="btn" id="toFinalBtn" disabled onclick="wiz(5)">Review Asana →</button></div>
+      </div>
+      <div class="wizpane" data-p="5" style="display:none">
+        <h2 class="display">Review your asana</h2>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin:12px 0">
+          <img src="../POC/outputs/b/final/step1.png" style="width:100%;height:104px;object-fit:cover;border-radius:12px" alt=""><img src="../POC/outputs/b/final/step2.png" style="width:100%;height:104px;object-fit:cover;border-radius:12px" alt=""><img src="../POC/outputs/b/final/step3.png" style="width:100%;height:104px;object-fit:cover;border-radius:12px" alt=""><img src="../POC/outputs/b/final/step4.png" style="width:100%;height:104px;object-fit:cover;border-radius:12px" alt="">
+        </div>
+        <div class="note sage">Happy with it? Accept below — or request a correction. <b>Feedback used: <span id="fbCount">0</span> of 3</b> (rejected feedback counts too). Each request replaces <b>all</b> steps and images.</div>
+        <div class="field"><label>Request a correction (pose corrections only, one per line)</label><textarea rows="2" placeholder="e.g. In step 2, palms should be beside the ears, not the shoulders"></textarea></div>
+        <div id="fbResult"></div>
+        <div class="flowfoot"><button class="btn ghost" onclick="submitFeedback()">Submit Feedback</button><span class="sp"></span><button class="btn light" onclick="wiz(4)">← Images</button><button class="btn" onclick="wiz(6)">Accept &amp; Save →</button></div>
+      </div>
+      <div class="wizpane" data-p="6" style="display:none">
+        <div class="center" style="text-align:center"><div>
+          <div style="font-size:52px;color:var(--deep)">✓</div>
+          <h2 class="display" style="font-size:32px;margin:10px 0">Saved to Public Library</h2>
+          <p class="muted" style="line-height:1.6;max-width:460px;margin:0 auto">As an admin creation it is live for everyone. Its images are now stored and will be reused in every practice, never regenerated.</p>
+          <div style="display:flex;gap:10px;justify-content:center;margin-top:22px"><button class="btn ghost" onclick="go('public')">View in Library</button><button class="btn" onclick="startPractice(document.getElementById('createName').value||'Chakrasana','public')">Practise it now</button></div>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAVOURITES -->
+<section class="screen" id="s-favourites">
+  <div class="pagehead"><div><h2 class="display">Favourites</h2><p>Your lists. Practise one asana at a time — no auto-play.</p></div><div class="sp"></div><button class="btn ghost" onclick="toast('New list created (prototype)')">+ New List</button></div>
+  <div class="tabs"><button class="tab on">Morning (3)</button><button class="tab" onclick="toast('Switched list (prototype)')">Weekend (2)</button><button class="tab" onclick="toast('Switched list (prototype)')">Gentle (4)</button><span style="flex:1"></span><button class="btn light small" onclick="toast('List renamed (prototype)')">Rename</button><button class="btn light small" onclick="toast('List deleted. No asanas were deleted.')">Delete List</button></div>
+  <div class="gridcards">
+    <div class="card acard"><img src="../POC/outputs/b/final/step4.png" alt=""><div class="b"><h3 class="display">Chakrasana</h3><div class="meta">Advanced · Backbend</div><div class="muted" style="font-size:12.5px">From Public Library</div><div class="row"><button class="btn small" style="flex:1" onclick="openDetail(this.closest('.acard').querySelector('h3').textContent,'favourites')">View</button><button class="btn ghost small" onclick="startPractice('Chakrasana','favourites')">Practise</button><button class="btn light small" onclick="toast('Removed from this list')">Remove</button></div></div></div>
+    <div class="card acard"><img src="../POC/outputs/b/final/step1.png" alt=""><div class="b"><h3 class="display">Tāḍāsana</h3><div class="meta">Beginner · Standing</div><div class="muted" style="font-size:12.5px">From Personal Library</div><div class="row"><button class="btn small" style="flex:1" onclick="openDetail(this.closest('.acard').querySelector('h3').textContent,'favourites')">View</button><button class="btn ghost small" onclick="startPractice('Tāḍāsana','favourites')">Practise</button><button class="btn light small" onclick="toast('Removed from this list')">Remove</button></div></div></div>
+    <div class="card acard"><img src="../POC/outputs/b/final/step2.png" alt=""><div class="b"><h3 class="display">Vṛkṣāsana</h3><div class="meta">Beginner · Balance</div><div class="muted" style="font-size:12.5px">From Public Library</div><div class="row"><button class="btn small" style="flex:1" onclick="openDetail(this.closest('.acard').querySelector('h3').textContent,'favourites')">View</button><button class="btn ghost small" onclick="startPractice('Vṛkṣāsana','favourites')">Practise</button><button class="btn light small" onclick="toast('Removed from this list')">Remove</button></div></div></div>
+  </div>
+  <div class="pager"><span>Morning · 3 asanas · Page 1 of 1</span><i class="on"></i></div>
+  <div class="note sage" style="flex:none;margin-top:10px">Disabled asanas are automatically hidden here. The same asana cannot be added twice to one list.</div>
+</section>
+<!-- PRACTICE: DEVICE SETUP -->
+<section class="screen" id="s-devices">
+  <div class="pagehead"><div><h2 class="display">Practice session</h2><p>Step 1 of 4 · Connect your devices</p></div><div class="sp"></div><span class="chip">Session code 4 8 2 1</span></div>
+  <div class="listrows" style="flex:none">
+    <div class="card devrow"><div class="ic">💻</div><div><h3 style="font-size:18px">Laptop — Chrome <span class="chip">PRIMARY ★ auto — first device</span></h3><p class="muted" style="font-size:13.5px;margin-top:3px">Sound and voice will come from this device.</p></div><div style="margin-left:auto;display:flex;gap:8px;align-items:center"><span class="chip" id="cam1chip">Camera off</span><button class="btn ghost small" onclick="enableCam(this,'cam1chip')">Enable Camera</button></div></div>
+    <div class="card devrow"><div class="ic">📱</div><div><h3 style="font-size:18px">iPhone — Safari <span class="chip clay">Secondary · camera only</span></h3><p class="muted" style="font-size:13.5px;margin-top:3px">Joined 2nd · muted</p></div><div style="margin-left:auto;display:flex;gap:8px;align-items:center"><span class="chip">Camera on ●</span><button class="btn ghost small" onclick="toast('iPhone becomes Primary after this step (prototype)');this.textContent='Becomes Primary ✓';this.disabled=true">Make This Device Primary</button></div></div>
+    <div class="card devrow"><div class="ic">💻</div><div><h3 style="font-size:18px">Laptop 2 — Edge <span class="chip clay">Secondary · camera only</span></h3><p class="muted" style="font-size:13.5px;margin-top:3px">Joined 3rd · muted</p></div><div style="margin-left:auto;display:flex;gap:8px;align-items:center"><span class="chip">Camera on ●</span><button class="btn ghost small" onclick="toast('Laptop 2 becomes Primary after this step (prototype)');this.textContent='Becomes Primary ✓';this.disabled=true">Make This Device Primary</button></div></div>
+  </div>
+  <div class="note sage">The first device to join became Primary automatically. You can practise with one device alone — add up to 2 more for other angles. Every device must be signed in as you.</div>
+  <div class="flowfoot"><button class="btn light" onclick="devicesBack()">← Back</button><span class="sp"></span><span class="muted" style="font-size:13.5px" id="devHint">Enable the Primary camera to continue</span><button class="btn" id="devContinue" disabled onclick="go('disclaimer')">Continue →</button></div>
+</section>
+
+<!-- PRACTICE: DISCLAIMER -->
+<section class="screen" id="s-disclaimer">
+  <div class="center"><div class="card" style="width:min(640px,95vw);padding:34px 38px">
+    <div style="font-size:30px">⚠</div>
+    <h2 class="display" style="font-size:29px;margin:8px 0">Before you begin</h2>
+    <p class="muted" id="discAsana" style="margin-bottom:12px;font-weight:700"></p>
+    <ul class="muted" style="line-height:1.75;padding-left:20px;font-size:15px">
+      <li>Consult a doctor before practising if you have any medical condition, injury, or are pregnant.</li>
+      <li>Check the cautions for your asana in the box below — do not practise it if any apply to you.</li>
+      <li>Stop immediately if you feel pain, dizziness, or strain.</li>
+      <li>This app gives pose guidance only. It is not medical advice.</li>
+    </ul>
+    <div class="note amber" id="discCaution" style="display:none"></div>
+    <div class="note sage">Your camera photos are used only to check your pose and are <b>never stored</b>.</div>
+    <label style="display:flex;gap:11px;align-items:flex-start;font-weight:600;line-height:1.5;cursor:pointer"><input type="checkbox" id="ackBox" style="width:20px;height:20px;margin-top:2px" onchange="document.getElementById('ackBtn').disabled=!this.checked"> I have read this and wish to continue</label>
+    <div class="flowfoot"><button class="btn light" onclick="go('devices')">← Back</button><span class="sp"></span><button class="btn" id="ackBtn" disabled onclick="afterDisclaimer()">Continue →</button></div>
+  </div></div>
+</section>
+
+<!-- PRACTICE: SELECT ASANA -->
+<section class="screen" id="s-select">
+  <div class="pagehead"><div><h2 class="display">Select an asana</h2><p id="selSub">Choose one — then devices, disclaimer, demo</p></div><div class="sp"></div><button class="btn light" onclick="practiceBack()">Exit practice</button><button class="btn light" id="selChangeDev" onclick="go('devices')">Change devices</button></div>
+  <div class="tabs"><button class="tab on" onclick="selTab(this,'pub')">Public Library</button><button class="tab" onclick="selTab(this,'per')">Personal Library</button><button class="tab" onclick="selTab(this,'fav')">Favourites · Morning ▾</button></div>
+  <div class="searchbar"><input id="selSearch" placeholder="Search name…" oninput="filterSel()"></div>
+  <div class="listrows" id="selList"></div>
+  <div class="note amber" id="selWarn" style="display:none;flex:none"></div>
+  <div class="flowfoot"><button class="btn light" onclick="selBackFn()">← Back</button><span class="sp"></span><span class="muted" style="font-size:13.5px">Selecting never starts counting — a demo is offered next.</span><button class="btn" id="selContinue" disabled onclick="selectContinue()">Continue →</button></div>
+</section>
+<!-- PRACTICE: DEMO -->
+<section class="screen" id="s-demo">
+  <div class="pagehead"><div><h2 class="display">Chakrasana</h2><p>Step 4 of 4 · 4 steps · Advanced</p></div></div>
+  <div class="center" id="demoOffer"><div class="card" style="width:min(620px,95vw);padding:36px 40px;text-align:center">
+    <h2 class="display" style="font-size:29px">Would you like to see a demo first?</h2>
+    <p class="muted" style="line-height:1.65;margin:12px 0 24px">The demo plays each step image one by one while the Primary reads the explanation aloud. <b>No photos are taken in demo.</b></p>
+    <div class="note sage sample-note" style="display:none">Prototype note: demo steps shown are the Chakrasana sample set.</div>
+    <div style="display:flex;flex-direction:column;gap:11px">
+      <button class="btn" onclick="startDemo()">▶ &nbsp;Yes — Show Demo</button>
+      <button class="btn ghost" onclick="go('ready')">Skip demo — I’m ready to practise</button>
+      <button class="btn light" id="demoBackBtn" onclick="backFromDemo()">← Back</button>
+      <button class="btn light" onclick="practiceBack()">Exit practice</button>
+    </div>
+  </div></div>
+  <div id="demoPlay" style="display:none;flex:1;min-height:0;flex-direction:column">
+    <div class="card" style="flex:1;min-height:0;padding:22px 26px;display:flex;flex-direction:column">
+      <div style="display:flex;gap:9px;align-items:center;flex:none"><span class="chip clay">DEMO · no photos taken</span><span class="muted" style="font-weight:700;font-size:14px" id="demoStepLbl">Step 1 of 4</span><span style="flex:1"></span><span class="muted" style="font-size:13.5px">🔊 Playing on Primary</span></div>
+      <img id="demoImg" src="../POC/outputs/b/final/step1.png" style="flex:1;min-height:0;width:100%;object-fit:cover;border-radius:16px;margin:14px 0" alt="Demo step image">
+      <p id="demoTxt" style="font-size:17px;line-height:1.6;flex:none"><b>Step 1.</b> Lie on your back, knees bent, feet flat and hip-width apart. Arms relaxed by your sides, breathe normally.</p>
+      <div class="flowfoot"><button class="btn light" id="demoPauseBtn" onclick="toggleDemoPause()">⏸ Pause</button><button class="btn ghost" onclick="demoStep(curDemo)">↺ Hear This Step Again</button><span class="sp"></span><button class="btn light" onclick="clearInterval(demoTimer);practiceBack()">Exit practice</button><button class="btn light" onclick="endDemo()">End Demo → Ready</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- PRACTICE: READY -->
+<section class="screen" id="s-ready">
+  <div class="center"><div class="card" style="width:min(640px,95vw);padding:34px 38px">
+    <span class="chip">Ready to practise</span>
+    <h2 class="display" style="font-size:31px;margin:12px 0 6px">Chakrasana</h2>
+    <p class="muted">Devices: Primary ★ + 2 Secondary · cameras ready</p>
+    <img src="../POC/outputs/b/final/step1.png" style="width:100%;height:190px;object-fit:cover;border-radius:14px;margin:16px 0" alt="Step 1 preview">
+    <p class="muted" style="line-height:1.65">When you tap Start, the Primary will say “Step 1”, read the instruction, then count “Get ready — 1, 2, 3” and take photos. <b>Get into the starting position above before you tap.</b></p>
+    <div class="note sage">Your photos will be checked and never stored. If you step out of any camera, counting pauses and the Primary will guide you back.</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn" onclick="go('coaching');startCoaching()">I’m Ready — Start Step 1</button>
+      <div style="display:flex;gap:10px"><button class="btn ghost" style="flex:1" onclick="go('demo')">Watch Demo</button><button class="btn light" style="flex:1" onclick="chooseDifferent('ready')">Choose a Different Asana</button><button class="btn light" style="flex:1" onclick="practiceBack()">Exit practice</button></div>
+    </div>
+  </div></div>
+</section>
+
+<!-- PRACTICE: COACHING (approved split design) -->
+<section class="screen" id="s-coaching">
+  <div class="pstrip">
+    <span class="appname2 display">Muse Yoga</span>
+    <div class="atitle"><h1 class="display">Chakrasana</h1><p>Wheel Pose · Advanced · Backbend</p></div>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+      <span class="chip" style="background:#DCE8D8">✓ 1</span><span class="chip" style="background:var(--deep);color:#fff;border-color:var(--deep)">2 · Now</span><span class="chip" style="background:#DCE8D8">3</span><span class="chip" style="background:#DCE8D8">4</span>
+      <span class="chip" style="background:var(--deep);color:#fff;border-color:var(--deep)">● Primary</span><span class="chip">3 devices</span>
+    </div>
+  </div>
+  <div class="tabs" style="margin-bottom:10px"><span class="muted" style="font-weight:800;font-size:12px;letter-spacing:.06em;align-self:center">REVIEW STATE</span><button class="tab on" id="rtN" onclick="setWarn(false)">Coaching</button><button class="tab" id="rtW" onclick="setWarn(true)">Framing warning</button><button class="tab" onclick="finishCoaching()">Skip to Analyzing →</button></div>
+  <div class="stagewrap">
+    <div class="splitstage" id="splitStage">
+      <section class="half cam" aria-label="Your camera">
+        <svg class="scene" viewBox="0 0 720 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><rect width="720" height="900" fill="#2C4636"/><rect y="680" width="720" height="220" fill="#243A2D"/><rect x="100" y="660" width="520" height="30" rx="12" fill="#7FA38B" opacity=".45"/><g id="figureMain" stroke="#EAF3E8" stroke-width="13" stroke-linecap="round" fill="none"><circle cx="360" cy="250" r="31" fill="#EAF3E8" stroke="none"/><path d="M360 288 C 334 398, 292 486, 226 570 M360 288 C 392 394, 436 480, 498 562"/><path d="M226 570 L168 668 M498 562 L558 654 M278 430 L196 380 M448 428 L532 372"/></g></svg>
+        <div class="tagrow"><span class="tag"><b class="dotlive"></b><span id="camName2">Your camera · Laptop</span></span><span class="tag ok" id="frameTag2">✓ Fully in view</span></div>
+        <aside class="film2">
+          <div class="thumb2" id="thumbIphone2"><div class="view"><svg viewBox="0 0 300 150" preserveAspectRatio="xMidYMid slice"><rect width="300" height="150" fill="#3C5A47"/><g stroke="#DCE9DC" stroke-width="6" stroke-linecap="round" fill="none"><circle cx="150" cy="44" r="11" fill="#DCE9DC" stroke="none"/><path d="M150 58 C138 88 120 108 96 126 M150 58 C164 86 182 106 204 124"/></g></svg></div><div class="nm"><span>iPhone</span><span>Muted</span></div><div class="fr" id="iphoneFr2">✓ In view</div><button class="sw" onclick="queueSwitch(this)">Make Primary</button></div>
+          <div class="thumb2"><div class="view"><svg viewBox="0 0 300 150" preserveAspectRatio="xMidYMid slice"><rect width="300" height="150" fill="#435C4B"/><g stroke="#E4EEE2" stroke-width="6" stroke-linecap="round" fill="none"><circle cx="148" cy="46" r="11" fill="#E4EEE2" stroke="none"/><path d="M148 60 C136 90 118 110 94 126 M148 60 C162 88 180 106 202 124"/></g></svg></div><div class="nm"><span>Laptop 2</span><span>Muted</span></div><div class="fr">✓ In view</div><button class="sw" onclick="queueSwitch(this)">Make Primary</button></div>
+        </aside>
+      </section>
+      <section class="half ref" aria-label="Reference">
+        <img class="refimg2" id="coachRef" src="../POC/outputs/b/final/step2.png" alt="Reference step 2">
+        <div class="refcap2"><div class="lab"><span id="coachRefLab">Reference · Step 2 of 4</span><em>Stored</em></div><p id="coachRefTxt">Palms flat beside your ears, fingers toward shoulders. <span>Feet parallel, knees over ankles.</span></p></div>
+      </section>
+      <div class="divider2"></div>
+      <div class="banner2" id="banner2" role="alert"><h2 class="display">I can’t measure your pose</h2><p>Not fully in the <u>iPhone camera</u> — that camera now fills your half. Move so your whole body fits, then hold still. Counting restarts itself.</p></div>
+      <button class="endbtn2" onclick="openModal('endModal')">End session</button>
+    </div>
+    <div class="countband">
+      <div class="num2" id="coachNum">2</div>
+      <div class="stack"><div class="clbl" id="coachLbl">Get ready</div>
+      <div class="dots2"><i class="full"></i><i id="cd2"></i><i></i><span id="coachDots">Capture 1 of 3 · Step <span id="coachStepNo">2</span> spoken aloud</span></div></div>
+    </div>
+  </div>
+</section>
+<!-- PRACTICE: ANALYZING -->
+<section class="screen" id="s-analyzing">
+  <div class="center"><div class="card" style="width:min(600px,95vw);padding:40px;text-align:center">
+    <h2 class="display" style="font-size:30px">Analyzing, please wait…</h2>
+    <p class="muted" style="line-height:1.65;margin:12px 0 20px">Checking each step with all camera angles. About 10 seconds per step.</p>
+    <div style="text-align:left;max-width:380px;margin:0 auto" id="analyzeList">
+      <div class="checkline"><span class="ok" data-a="1">◌</span> Checking Step 1…</div>
+      <div class="checkline"><span class="ok" data-a="2">◌</span> Checking Step 2…</div>
+      <div class="checkline"><span class="ok" data-a="3">◌</span> Checking Step 3…</div>
+      <div class="checkline"><span class="ok" data-a="4">◌</span> Checking Step 4…</div>
+    </div>
+    <div class="progress" style="max-width:380px;margin:18px auto 6px"><i id="analyzeBar" style="width:6%"></i></div>
+    <p class="muted" style="font-size:13.5px">Your photos are being checked now and will not be stored.</p>
+  </div></div>
+</section>
+
+<!-- RESULTS -->
+<section class="screen" id="s-results">
+  <div class="pagehead"><div><h2 class="display">Your Results — Chakrasana</h2><p>Read aloud on your Primary. No score — each step is correct, or needs a correction.</p></div><div class="sp"></div><span class="chip">Today · 7:32 am</span></div>
+  <div class="listrows">
+    <button class="card resultstep" onclick="openResultStep(1)"><img src="../POC/outputs/b/final/step1.png" alt=""><div><div class="verdict ok">✓ Step 1 — Correct</div><p class="muted" style="line-height:1.6;margin-top:5px">Feet flat and hip-width apart, arms relaxed. Beautifully settled.</p></div><span class="tap">View large →</span></button>
+    <button class="card resultstep" onclick="openResultStep(2)"><img src="../POC/outputs/f/final_annotated_boy_step1.png" alt="Annotated character image with red markings"><div><div class="verdict no">✕ Step 2 — Needs correction</div><p class="muted" style="line-height:1.6;margin-top:5px">Your palms were beside your shoulders instead of beside your ears, and your elbows pointed outward. The red marks are on the character image — never on your photo.</p></div><span class="chip clay" style="flex:none">Annotated character image</span><span class="tap">View large →</span></button>
+    <button class="card resultstep" onclick="openResultStep(3)"><img src="../POC/outputs/b/final/step3.png" alt=""><div><div class="verdict ok">✓ Step 3 — Correct</div><p class="muted" style="line-height:1.6;margin-top:5px">Hips lifted evenly, head still resting. Good press through the feet.</p></div><span class="tap">View large →</span></button>
+    <button class="card resultstep" onclick="openResultStep(4)"><img src="../POC/outputs/b/final/step4.png" alt=""><div><div class="verdict no">✕ Step 4 — Needs correction</div><p class="muted" style="line-height:1.6;margin-top:5px">Arms were not yet straight and the chest could lift higher. Come down sooner if your wrists ache.</p></div><span class="chip clay" style="flex:none">Annotated character image</span><span class="tap">View large →</span></button>
+  </div>
+  <div class="flowfoot"><span class="muted" style="font-size:13.5px">Your photos were not stored. Only this text and marked character images are saved.</span><span class="sp"></span><button class="btn light" onclick="go('history')">View in History</button><button class="btn ghost" onclick="chooseDifferent('results')">Pick Another Asana</button><button class="btn" onclick="go('ready')">↺ Practice Again — all steps</button></div>
+</section>
+
+<!-- HISTORY -->
+<section class="screen" id="s-history">
+  <div class="pagehead"><div><h2 class="display">Practice History</h2><p>Your practice, day by day. Only text and marked character images are kept.</p></div><div class="sp"></div><button class="btn light small" onclick="toast('Previous month (prototype)')">← Sep</button><span class="chip">October 2026</span><button class="btn light small" onclick="toast('Next month (prototype)')">Nov →</button></div>
+  <div style="display:grid;grid-template-columns:1.25fr .75fr;gap:16px;flex:1;min-height:0">
+    <div class="card" style="padding:18px 20px;display:flex;flex-direction:column">
+      <div class="cal" id="calGrid"></div>
+      <p class="muted" style="font-size:13px;padding-top:12px;flex:none">● = you practised · Page 1 of 1 · this month fits one screen</p>
+    </div>
+    <div class="card" style="padding:20px 22px">
+      <h3 class="display" style="font-size:21px" id="histDayTitle">Friday 30 October</h3>
+      <div id="histSessions">
+        <div class="note sage" style="cursor:pointer" onclick="toast('Session detail is the Results screen — use Results in a practice run (prototype)')"><b>7:32 am · Chakrasana</b><br>Steps 1 &amp; 3 correct · Steps 2 &amp; 4 corrected → tap for full detail</div>
+        <div class="note sage" style="cursor:pointer" onclick="toast('Session detail opened (prototype)')"><b>6:15 am · Tāḍāsana</b><br>All steps correct</div>
+      </div>
+      <img src="../POC/outputs/f/final_annotated_boy_step1.png" style="width:100%;height:150px;object-fit:cover;border-radius:13px;margin-top:8px" alt="Annotated character image from history">
+      <p class="muted" style="font-size:13px;line-height:1.55;margin-top:9px">Annotated character image, Step 2 — stored in history. Your own photos never appear here.</p>
+      <button class="btn ghost small" id="histDetailBtn" style="margin-top:10px" onclick="go('results')">Open this day’s detail</button>
+    </div>
+  </div>
+</section>
+
+<!-- ADMIN -->
+<section class="screen" id="s-admin">
+  <div class="pagehead"><div><h2 class="display">Admin Panel</h2><p>Approvals, public asanas, characters, reference books, and limits.</p></div></div>
+  <div class="tabs"><button class="tab on" onclick="adminTab(this,'sub')">Submissions</button><button class="tab" onclick="adminTab(this,'puba')">Public Asanas</button><button class="tab" onclick="adminTab(this,'chars')">Characters</button><button class="tab" onclick="adminTab(this,'pdfs')">Reference PDFs</button><button class="tab" onclick="adminTab(this,'limits')">Limits &amp; Settings</button></div>
+  <div class="card" style="flex:1;min-height:0;padding:20px 24px" id="adminBody"></div>
+</section>
+<!-- RESULT STEP LARGE VIEW -->
+<div class="modalwrap" id="resultModal"><div class="card modal" style="width:min(920px,96vw);padding:24px 26px">
+  <div style="display:flex;align-items:flex-start;gap:14px">
+    <div><h3 class="display" id="rmTitle" style="font-size:27px">Step 2</h3><div id="rmVerdict" class="verdict no" style="margin-top:4px">✕ Needs correction</div></div>
+    <span style="flex:1"></span>
+    <span class="chip clay">Feedback image · character, never your photo</span>
+    <button class="btn light small" onclick="closeModal('resultModal')">✕ Close</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1.35fr .65fr;gap:18px;margin-top:16px">
+    <div class="annotwrap">
+      <img id="rmImg" src="../POC/outputs/f/final_annotated_boy_step1.png" alt="Large feedback image for this step">
+      <svg class="marks" id="rmMarks" viewBox="0 0 800 500" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <span class="marklbl" id="rmLbl1" style="display:none"></span>
+      <span class="marklbl" id="rmLbl2" style="display:none"></span>
+    </div>
+    <div>
+      <h4 style="font-size:15px;margin-bottom:7px">What the coach saw</h4>
+      <p class="muted" id="rmText" style="line-height:1.65"></p>
+      <div class="note sage" id="rmHow" style="margin-top:14px"></div>
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+        <button class="btn ghost small" id="rmPrev" onclick="openResultStep(window._rmStep-1)">← Prev step</button>
+        <button class="btn ghost small" id="rmNext" onclick="openResultStep(window._rmStep+1)">Next step →</button>
+      </div>
+      <p class="muted" style="font-size:12.5px;line-height:1.55;margin-top:14px">Red circles and arrows are drawn on the stored character image. Your camera photos are never stored and never shown here.</p>
+    </div>
+  </div>
+</div></div>
+
+<!-- MODALS -->
+<div class="modalwrap" id="favModal"><div class="card modal"><h3 class="display">Add to Favourites</h3><p class="muted" style="line-height:1.6">Choose a list for Chakrasana. It cannot be added twice to the same list.</p><div style="display:flex;flex-direction:column;gap:9px;margin-top:16px"><button class="btn ghost" onclick="closeModal('favModal');toast('Added to Morning')">Morning (3 asanas)</button><button class="btn ghost" onclick="closeModal('favModal');toast('Added to Weekend')">Weekend (2 asanas)</button><button class="btn ghost" onclick="closeModal('favModal');toast('Added to Gentle')">Gentle (4 asanas)</button></div><div class="flowfoot"><button class="btn light" onclick="closeModal('favModal')">Cancel</button></div></div></div>
+
+<div class="modalwrap" id="feedbackModal"><div class="card modal"><h3 class="display">Request a correction</h3><p class="muted" style="line-height:1.6">Feedback used: <b>1 of 3</b> · remaining 2 (rejected feedback counts). Every line must be a pose correction, checked against the reference book. If accepted, <b>all</b> steps and images are replaced.</p><div class="field" style="margin-top:14px"><label>Your correction, one per line</label><textarea rows="3">In step 2, palms should rest beside the ears</textarea></div><div class="note red">✕ Example rejection — “Line 2 asks about pricing, not a pose correction.” The model gives the reason, and it still uses 1 of your 3.</div><div class="flowfoot"><button class="btn light" onclick="closeModal('feedbackModal')">Cancel</button><span class="sp"></span><button class="btn" onclick="closeModal('feedbackModal');toast('Feedback accepted — all steps regenerated (prototype)')">Submit Feedback</button></div></div></div>
+
+<div class="modalwrap" id="submitModal"><div class="card modal"><h3 class="display">Submit for publication?</h3><p class="muted" style="line-height:1.65">Once approved, Chakrasana <b>moves to the Public Library</b>, leaves My Asanas, is credited “Submitted by Priya”, and you can no longer change it. While pending you can still practise, disable, or withdraw it.</p><div class="flowfoot"><button class="btn light" onclick="closeModal('submitModal')">Not yet</button><span class="sp"></span><button class="btn" onclick="closeModal('submitModal');toast('Submitted. Status is now Pending approval.')">Submit</button></div></div></div>
+
+<div class="modalwrap" id="endModal"><div class="card modal"><h3 class="display">End this session?</h3><p class="muted" style="line-height:1.65">Your captured photos are <b>never stored</b> and will simply be discarded. You will return to where you started this practice.</p><div class="flowfoot"><button class="btn light" onclick="closeModal('endModal')">Keep practising</button><span class="sp"></span><button class="btn" onclick="closeModal('endModal');practiceBack()">End session</button></div></div></div>
+<script>
+var ASANAS=[
+ {n:'Chakrasana',d:'Advanced',c:'Backbend',img:'../POC/outputs/b/final/step4.png',by:'Submitted by Priya'},
+ {n:'Tāḍāsana',d:'Beginner',c:'Standing',img:'../POC/outputs/b/final/step1.png',by:'Public Library'},
+ {n:'Vṛkṣāsana',d:'Beginner',c:'Balance',img:'../POC/outputs/b/final/step2.png',by:'Public Library'},
+ {n:'Bhujangasana',d:'Beginner',c:'Backbend',img:'../POC/outputs/b/final/step3.png',by:'Submitted by Arjun'},
+ {n:'Adho Mukha',d:'Advanced',c:'Inversion',img:'../asanas/public/chakrasana/chakrasana_step_2.png',by:'Public Library'},
+ {n:'Setu Bandha',d:'Beginner',c:'Backbend',img:'../asanas/public/chakrasana/chakrasana_step_1.png',by:'Public Library'}];
+var STEPS=[
+ {img:'../POC/outputs/b/final/step1.png',t:'<b>Step 1.</b> Lie on your back, knees bent, feet flat and hip-width apart. Arms relaxed by your sides.'},
+ {img:'../POC/outputs/b/final/step2.png',t:'<b>Step 2.</b> Palms flat beside your ears, fingers toward shoulders. Feet parallel, knees over ankles.'},
+ {img:'../POC/outputs/b/final/step3.png',t:'<b>Step 3.</b> Press into your feet and lift hips, then press into hands to lift head and chest.'},
+ {img:'../POC/outputs/b/final/step4.png',t:'<b>Step 4.</b> Straighten arms and legs into Wheel Pose. Breathe steadily, gaze between your hands.'}];
+var IMMERSIVE=['coaching']; /* only the practice (coaching) screen drops the global header; it has its own Muse Yoga strip */
+var PREAUTH=['login','register'];
+var currentAsana='Chakrasana', detailOrigin='public', practiceOrigin='public';
+var ORIGIN_LABEL={public:'Public Library',personal:'My Asanas',favourites:'Favourites'};
+function setAsanaTitles(){
+  document.querySelectorAll('.asana-name-slot').forEach(function(e){e.textContent=currentAsana||'Select an asana'});
+  var d=document.querySelector('#s-demo .pagehead h2'); if(d) d.textContent=currentAsana||'Demo';
+  var r=document.querySelector('#s-ready h2.display'); if(r) r.textContent=currentAsana||'Ready';
+  var c=document.querySelector('#s-coaching .atitle h1'); if(c) c.textContent=currentAsana||'Practice';
+  var rh=document.querySelector('#s-results .pagehead h2'); if(rh) rh.textContent='Your Results — '+(currentAsana||'Chakrasana');
+  document.querySelectorAll('.sample-note').forEach(function(e){e.style.display=(currentAsana&&currentAsana!=='Chakrasana')?'block':'none'});
+}
+var CAUTIONS={'Chakrasana':'back or neck injury · wrist injury · blood-pressure / heart conditions · pregnancy','Tāḍāsana':'low blood pressure — rise slowly · ankle or knee injury','Vṛkṣāsana':'balance disorders · ankle or knee injury — practise near a wall','Bhujangasana':'back injury · pregnancy · recent abdominal surgery','Adho Mukha':'wrist or shoulder injury · high blood pressure','Setu Bandha':'neck or back injury · knee injury'};
+function openDetail(name,origin){
+  if(origin===undefined){origin=name; name='Chakrasana'}
+  detailOrigin=origin||'public'; currentAsana=name;
+  var b=document.getElementById('detailBack'); if(b) b.textContent='← '+ORIGIN_LABEL[detailOrigin];
+  var l=document.getElementById('detailOriginLbl'); if(l) l.textContent=ORIGIN_LABEL[detailOrigin]+' · Submitted by Priya';
+  var h=document.querySelector('#s-detail .pagehead h2'); if(h) h.textContent=name;
+  var a=ASANAS.filter(function(x){return x.n===name})[0];
+  var chips=document.querySelectorAll('#s-detail .detail .l .chip');
+  if(a&&chips.length>2){chips[0].textContent=a.d; chips[2].textContent=a.c}
+  var warn=document.querySelector('#s-detail .note.amber'); if(warn) warn.innerHTML='<b>⚠ Cautions — do not practise if you have:</b> '+(CAUTIONS[name]||CAUTIONS['Chakrasana'])+'.';
+  var ds=document.getElementById('detailSample'); if(ds){ if(origin==='personal'&&(name==='Vṛkṣāsana'||name==='Bhujangasana')){ds.style.display='block'; ds.innerHTML=name==='Vṛkṣāsana'?'<b>Rejected:</b> “Steps do not match the reference book description.” This asana cannot be edited, resubmitted, or practised — disable it and create a new one.':'<b>Disabled:</b> this asana cannot be practised until you re-enable it in My Asanas.'} else {ds.style.display=name==='Chakrasana'?'none':'block'; if(name!=='Chakrasana') ds.textContent='Prototype note: step images and text shown are the Chakrasana sample set for every asana in this mock.'} }
+  var dst=document.getElementById('detailStart'); if(dst) dst.disabled=(origin==='personal'&&(name==='Vṛkṣāsana'||name==='Bhujangasana'));
+  document.querySelectorAll('.sample-note').forEach(function(e){e.style.display=name==='Chakrasana'?'none':'block'});
+  go('detail');
+}
+var practiceReturn=null, flowMode='preselected';
+function startPractice(name,origin,fromDetail){currentAsana=name||'Chakrasana'; practiceOrigin=origin||'public'; practiceReturn=fromDetail?'detail':null; flowMode='preselected'; setAsanaTitles(); go('devices')}
+function startGeneric(){currentAsana=null; practiceOrigin='public'; practiceReturn=null; flowMode='generic'; setAsanaTitles(); resetSelect(); var t=document.querySelector('#s-select .tab'); if(t) selTab(t,'pub'); go('select')}
+function selectContinue(){ if(flowMode==='generic'){go('devices')} else if(flowMode==='reselect'){go('disclaimer')} else {go('demo')} }
+function practiceBack(){ if(practiceReturn==='detail'){openDetail(currentAsana,detailOrigin)} else {go(practiceOrigin||'public')} }
+function afterDisclaimer(){ if(currentAsana){go('demo')} else {go('select')} }
+function resetSelect(){document.querySelectorAll('#selList .prow').forEach(function(p){p.style.boxShadow='';p.style.borderColor=''});var w=document.getElementById('selWarn'); if(w) w.style.display='none'; var c=document.getElementById('selContinue'); if(c) c.disabled=true}
+var reselectReturn='ready';
+function chooseDifferent(from){currentAsana=null; practiceReturn=null; flowMode='reselect'; reselectReturn=from||'ready'; setAsanaTitles(); resetSelect(); var t=document.querySelector('#s-select .tab'); if(t) selTab(t,'pub'); go('select')}
+function devicesBack(){ if(flowMode==='generic'||flowMode==='reselect'){go('select')} else {practiceBack()} }
+function selBackFn(){ if(flowMode==='generic'){practiceBack()} else if(flowMode==='reselect'){go(reselectReturn)} else {go('disclaimer')} }
+function backFromDemo(){ if(flowMode==='reselect'){go('select')} else if(currentAsana){go('disclaimer')} else {go('select')} }
+function go(id){
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});
+  var el=document.getElementById('s-'+id); if(el) el.classList.add('active');
+  document.body.classList.toggle('immersive', IMMERSIVE.indexOf(id)>-1);
+  document.body.classList.toggle('preauth', PREAUTH.indexOf(id)>-1);
+  document.querySelectorAll('.navbtn').forEach(function(b){b.classList.toggle('on', b.getAttribute('data-nav')===id)});
+  window.scrollTo(0,0);
+  if(id==='disclaimer'){var ack=document.getElementById('ackBox'); if(ack) ack.checked=false; var ab0=document.getElementById('ackBtn'); if(ab0) ab0.disabled=true; var ab=document.getElementById('ackBtn'); if(ab) ab.textContent=currentAsana?('Continue → Demo ('+currentAsana+')'):('Continue → Select Asana'); var db=document.getElementById('demoBackBtn'); if(db) db.textContent=currentAsana?'← Back to Disclaimer':'← Back to Select Asana'; var da=document.getElementById('discAsana'); if(da) da.textContent=currentAsana?('You selected '+currentAsana+' — after this you will go straight to its demo, no need to select again.'):('You have not selected an asana yet — you will choose one next.'); var dc=document.getElementById('discCaution'); if(dc){ if(currentAsana){dc.style.display='block'; dc.innerHTML='<b>⚠ '+currentAsana+' — do not practise if you have:</b> '+((typeof CAUTIONS!=='undefined'&&CAUTIONS[currentAsana])||'')+'.'} else {dc.style.display='none'} }}
+  if(id==='select'){var ss=document.getElementById('selSub'); if(ss) ss.textContent=flowMode==='generic'?'Choose one — then devices, disclaimer, demo':'Choose one — a demo is offered next'; var cd=document.getElementById('selChangeDev'); if(cd) cd.style.display=flowMode==='generic'?'none':''}
+  if(id==='analyzing') runAnalyze();
+  if(id==='history') buildCal();
+  if(id==='admin') adminTab(null,'sub');
+}
+function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2600)}
+function openModal(id){document.getElementById(id).classList.add('show')}
+function closeModal(id){document.getElementById(id).classList.remove('show')}
+function sendOtp(){document.getElementById('loginStep1').style.display='none';document.getElementById('loginStep2').style.display='block';toast('Code sent (prototype — any code works)')}
+function verifyLogin(){
+  var e=(document.getElementById('loginEmail').value||'').toLowerCase();
+  if(e.indexOf('blocked')>-1){document.getElementById('loginError').innerHTML='<div class="note red"><b>This account has been permanently blocked</b> after repeated incorrect codes. There is no recovery process.</div>';return}
+  toast('Welcome back, Priya'); go('public');
+}
+function renderPub(){
+  var g=document.getElementById('pubGrid'); if(!g) return;
+  g.innerHTML=ASANAS.map(function(a){return '<div class="card acard"><img src="'+a.img+'" alt=""><div class="b"><h3 class="display">'+a.n+'</h3><div class="meta">'+a.d+' · '+a.c+'</div><div class="muted" style="font-size:12.5px">'+a.by+'</div><div class="row"><button class="btn small" style="flex:1" onclick="openDetail(\''+a.n+'\',\'public\')">View</button><button class="heart" onclick="openModal(\'favModal\')">♥</button><button class="btn ghost small" onclick="startPractice(\''+a.n+'\',\'public\')">Practise</button></div></div></div>'}).join('');
+}
+function filterPub(){
+  var norm=function(s){return s.toLowerCase().replace(/ṛ/g,'ri').replace(/ā/g,'a').replace(/ṣ/g,'s').replace(/ṭ/g,'t').replace(/ī/g,'i').replace(/ū/g,'u').replace(/ḍ/g,'d').replace(/ś/g,'s').replace(/ṅ/g,'n')};
+  var q=norm(document.getElementById('pubSearch').value||'');
+  var d=document.getElementById('pubDiff').value;
+  var visible=0;
+  document.querySelectorAll('#pubGrid .acard').forEach(function(c){
+    var t=norm(c.textContent);
+    var show=(t.indexOf(q)>-1 && (d.indexOf('All')===0 || t.indexOf(d.toLowerCase())>-1));
+    c.style.display=show?'':'none'; if(show) visible++;
+  });
+  var e=document.getElementById('pubEmpty'); if(e) e.style.display=visible?'none':'block';
+}
+function selChar(b){document.querySelectorAll('.char').forEach(function(c){c.classList.remove('sel')});b.classList.add('sel')}
+function wiz(n){
+  document.querySelectorAll('.wizpane').forEach(function(p){p.style.display=p.getAttribute('data-p')==n?'':'none'});
+  document.querySelectorAll('#wizNav .st').forEach(function(s){var w=+s.getAttribute('data-w');s.classList.toggle('now',w===n);s.classList.toggle('done',w<n);if(w<n)s.querySelector('.n').textContent='✓';else s.querySelector('.n').textContent=w});
+}
+function runChecks(){setTimeout(function(){document.getElementById('genStepsLine').innerHTML='<span class="ok">✓</span> Steps generated — 4 steps with difficulty, benefits &amp; cautions';document.getElementById('toReviewBtn').disabled=false},1400)}
+function runGen(){
+  var names=['Step 1 image — passed character & anatomy check','Step 2 image — passed','Step 3 image — regenerated once, then passed','Step 4 image — passed'];
+  var list=document.getElementById('genList'); list.innerHTML=names.map(function(x,i){return '<div class="checkline" id="gen'+i+'"><span>◌</span> '+x.replace(' — ','…')+'</div>'}).join('');
+  var i=0; document.getElementById('toFinalBtn').disabled=true;
+  var iv=setInterval(function(){
+    if(i>0){var p=document.getElementById('gen'+(i-1)); p.innerHTML='<span class="ok">✓</span> '+names[i-1]}
+    document.getElementById('genBar').style.width=(8+i*24)+'%';
+    if(i>=4){clearInterval(iv);document.getElementById('genBar').style.width='100%';document.getElementById('toFinalBtn').disabled=false;return}
+    i++;
+  },850);
+}
+var fbUsed=0;
+function submitFeedback(){
+  if(fbUsed>=3){document.getElementById('fbResult').innerHTML='<div class="note red">You have used all 3 feedbacks for this asana. No more corrections can be requested.</div>';return}
+  fbUsed++; document.getElementById('fbCount').textContent=fbUsed;
+  document.getElementById('fbResult').innerHTML = fbUsed===1
+    ? '<div class="note red">✕ <b>Rejected:</b> “Your second line is not a pose correction.” This still counts — '+fbUsed+' of 3 used.</div>'
+    : '<div class="note sage">✓ <b>Accepted.</b> All steps and images were regenerated. Review them above — the old version is gone.</div>';
+}
+function enableCam(btn,chipId){document.getElementById(chipId).textContent='Camera on ●';btn.disabled=true;btn.textContent='Camera on';document.getElementById('devContinue').disabled=false;document.getElementById('devHint').textContent='Primary camera ready'}
+function selTab(btn,src){
+  document.querySelectorAll('#s-select .tab').forEach(function(t){t.classList.remove('on')}); btn.classList.add('on');
+  var data={pub:[['Chakrasana','Public · Advanced · Backbend · 4 steps','../POC/outputs/b/final/step4.png',''],['Tāḍāsana','Public · Beginner · Standing · 3 steps','../POC/outputs/b/final/step1.png',''],['Vṛkṣāsana','Public · Beginner · Balance · 2 steps','../POC/outputs/b/final/step2.png','']],
+    per:[['Chakrasana (mine)','Personal · Advanced · 4 steps','../asanas/public/chakrasana/chakrasana_step_1.png',''],['Tāḍāsana (pending)','Personal · Pending approval — can still practise','../POC/outputs/b/final/step1.png','']],
+    fav:[['Chakrasana','Favourites · Morning · Public','../POC/outputs/b/final/step4.png',''],['Tāḍāsana','Favourites · Morning · Personal','../POC/outputs/b/final/step1.png',''],['Vṛkṣāsana','Favourites · Morning · Public','../POC/outputs/b/final/step2.png','']]};
+  var list=data[src];
+  document.getElementById('selList').innerHTML=list.map(function(x,i){return '<button class="card prow" style="text-align:left;width:100%" onclick="pickAsana(this)"><img src="'+x[2]+'" alt=""><div><h3>'+x[0]+'</h3><p>'+x[1]+'</p></div><span class="chip" style="margin-left:auto">Select</span></button>'}).join('');
+  document.getElementById('selContinue').disabled=true; document.getElementById('selWarn').style.display='none';
+}
+function filterSel(){var q=(document.getElementById('selSearch').value||'').toLowerCase().replace(/ṛ/g,'ri').replace(/ā/g,'a').replace(/ḍ/g,'d');document.querySelectorAll('#selList .prow').forEach(function(p){p.style.display=p.textContent.toLowerCase().replace(/ṛ/g,'ri').replace(/ā/g,'a').replace(/ḍ/g,'d').indexOf(q)>-1?'':'none'})}
+function pickAsana(el){
+  var h=el.querySelector('h3'); currentAsana=h?h.textContent.replace(/\s*\(mine\)|\s*\(pending\)/g,'').trim():'Chakrasana'; setAsanaTitles();
+  document.querySelectorAll('#selList .prow').forEach(function(p){p.style.boxShadow='';p.style.borderColor=''});
+  el.style.boxShadow='0 0 0 2.5px #2F5D43'; el.style.borderColor='#2F5D43';
+  var w=document.getElementById('selWarn'); w.style.display='block';
+  w.innerHTML='<b>⚠ Do not practise '+currentAsana+' if you have:</b> '+((typeof CAUTIONS!=='undefined'&&CAUTIONS[currentAsana])||CAUTIONS['Chakrasana'])+'.';
+  document.getElementById('selContinue').disabled=false;
+}
+/* demo */
+var curDemo=0, demoTimer=null, demoPaused=false;
+function demoStep(n){
+  curDemo=n;
+  document.getElementById('demoImg').src=STEPS[n].img;
+  document.getElementById('demoTxt').innerHTML=STEPS[n].t;
+  document.getElementById('demoStepLbl').textContent='Step '+(n+1)+' of 4 · '+(n===0?'spoken: “Step 1…”':'spoken aloud on Primary');
+}
+function startDemo(){
+  document.getElementById('demoOffer').style.display='none';
+  var p=document.getElementById('demoPlay'); p.style.display='flex';
+  demoPaused=false; demoStep(0); clearInterval(demoTimer);
+  demoTimer=setInterval(function(){ if(demoPaused) return; if(curDemo>=3){endDemo();return} demoStep(curDemo+1); },3600);
+}
+function toggleDemoPause(){demoPaused=!demoPaused;document.getElementById('demoPauseBtn').textContent=demoPaused?'▶ Resume':'⏸ Pause'}
+function endDemo(){clearInterval(demoTimer);document.getElementById('demoPlay').style.display='none';document.getElementById('demoOffer').style.display='grid';go('ready')}
+/* coaching */
+var coachTimer=null, coachCapture=1;
+function startCoaching(){coachCapture=1;playCoachCount()}
+function playCoachCount(){
+  var el=document.getElementById('coachNum'); if(el.classList.contains('paused2')){el.outerHTML='<div class="num2" id="coachNum">3</div>';el=document.getElementById('coachNum')}
+  var n=3; document.getElementById('coachLbl').textContent='Get ready'; el.textContent=n; clearInterval(coachTimer);
+  coachTimer=setInterval(function(){
+    n--;
+    if(n<1){clearInterval(coachTimer);el.textContent='•';document.getElementById('coachLbl').textContent='Photo taken';
+      var st=document.getElementById('splitStage'); st.classList.remove('go'); void st.offsetWidth;
+      setTimeout(function(){document.getElementById('coachLbl').textContent='Hold…';document.getElementById('cd2').classList.add('full');document.getElementById('coachDots').firstChild.textContent='Capture 2 of 3 · Step 2 spoken aloud ';},430);
+      return}
+    el.textContent=n;
+  },900);
+}
+function queueSwitch(b){b.textContent='Primary after this step ✓';b.classList.add('queued');b.disabled=true}
+function setWarn(w){
+  document.getElementById('rtN').classList.toggle('on',!w);
+  document.getElementById('rtW').classList.toggle('on',w);
+  document.getElementById('banner2').classList.toggle('show',w);
+  var ft=document.getElementById('frameTag2');
+  if(w){
+    document.getElementById('camName2').textContent='iPhone camera · problem view';
+    ft.textContent='⚠ Not fully in view'; ft.classList.remove('ok'); ft.classList.add('bad');
+    document.getElementById('thumbIphone2').classList.add('bad');
+    document.getElementById('iphoneFr2').textContent='⚠ Not fully in view';
+    document.getElementById('figureMain').setAttribute('transform','translate(300,50)');
+    document.getElementById('coachLbl').textContent='Paused';
+    document.getElementById('coachNum').outerHTML='<div class="num2 paused2" id="coachNum">Hold still — counting restarts itself</div>';
+    document.getElementById('cd2').classList.add('held'); clearInterval(coachTimer);
+  } else {
+    document.getElementById('camName2').textContent='Your camera · Laptop';
+    ft.textContent='✓ Fully in view'; ft.classList.add('ok'); ft.classList.remove('bad');
+    document.getElementById('thumbIphone2').classList.remove('bad');
+    document.getElementById('iphoneFr2').textContent='✓ In view';
+    document.getElementById('figureMain').removeAttribute('transform');
+    document.getElementById('cd2').classList.remove('held');
+    var n=document.getElementById('coachNum'); if(n.classList.contains('paused2')) n.outerHTML='<div class="num2" id="coachNum">3</div>';
+    playCoachCount();
+  }
+}
+function finishCoaching(){clearInterval(coachTimer);go('analyzing')}
+function runAnalyze(){
+  var bar=document.getElementById('analyzeBar'); var marks=document.querySelectorAll('#analyzeList [data-a]');
+  marks.forEach(function(m){m.textContent='◌'}); bar.style.width='6%'; var i=0;
+  var iv=setInterval(function(){
+    if(i>0) marks[i-1].textContent='✓';
+    bar.style.width=(6+i*24)+'%';
+    if(i>=4){clearInterval(iv);bar.style.width='100%';setTimeout(function(){go('results')},500);return}
+    i++;
+  },650);
+}
+/* results large view */
+var RESULT_STEPS={
+ 1:{ok:true,img:'../POC/outputs/b/final/step1.png',real:false,text:'Feet flat and hip-width apart, arms relaxed by your sides. Knees tracked over your ankles in all three camera angles.',how:'No marks needed — this stored character image matches what the best camera set showed.',marks:[]},
+ 2:{ok:false,img:'../POC/outputs/f/final_annotated_boy_step1.png',real:true,text:'Your palms were beside your shoulders instead of beside your ears, and your elbows pointed outward. Move the palms up beside the ears, fingers toward the shoulders, and keep the elbows in.',how:'This is the real annotated character image saved for this step: red circles mark palm and elbow placement. The marks sit on the character — never on your photo.',marks:[]},
+ 3:{ok:true,img:'../POC/outputs/b/final/step3.png',real:false,text:'Hips lifted evenly and the head was still resting. The press through the feet was even on the front and side cameras.',how:'No marks needed — hip lift and head position matched the reference in the best camera set.',marks:[]},
+ 4:{ok:false,img:'../POC/outputs/b/final/step4.png',real:false,text:'Arms were not yet straight and the chest could lift higher into the arch. Straighten through the elbows only as far as comfortable, and come down sooner if your wrists ache.',how:'Red annotations are drawn programmatically on the stored character image (the proven POC method): one circle on arm line, one on chest lift, with arrows showing the direction to move.',marks:[{x:34,y:38,r:11,l:'Straighten arms',lx:34,ly:38},{x:58,y:30,r:12,l:'Lift chest higher',lx:58,ly:30}]}
+};
+function openResultStep(n){
+  if(n<1||n>4) return;
+  window._rmStep=n;
+  var d=RESULT_STEPS[n];
+  document.getElementById('rmTitle').textContent='Step '+n+' of 4 — Chakrasana';
+  var v=document.getElementById('rmVerdict');
+  v.textContent=d.ok?'✓ Correct':'✕ Needs correction';
+  v.className='verdict '+(d.ok?'ok':'no');
+  document.getElementById('rmImg').src=d.img;
+  document.getElementById('rmImg').alt='Large feedback image for step '+n;
+  document.getElementById('rmText').textContent=d.text;
+  document.getElementById('rmHow').textContent=d.how;
+  var svg=document.getElementById('rmMarks');
+  var lbls=[document.getElementById('rmLbl1'),document.getElementById('rmLbl2')];
+  if(d.ok||d.real||!d.marks.length){
+    svg.innerHTML=d.ok?'<circle cx="400" cy="235" r="86" fill="none" stroke="#2F5D43" stroke-width="10" opacity="0.9"/><path d="M345 240 L388 283 L462 190" fill="none" stroke="#2F5D43" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>':'';
+    lbls.forEach(function(l){l.style.display='none'});
+  } else {
+    svg.innerHTML=d.marks.map(function(m){
+      var cx=m.x*8, cy=m.y*5, r=m.r*5;
+      return '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="#D43A2A" stroke-width="7"/><path d="M'+(cx+r+8)+' '+(cy-r-6)+' l34 -22 m0 0 l-4 20 m4 -20 l-19 5" stroke="#D43A2A" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
+    }).join('');
+    d.marks.forEach(function(m,i){var l=lbls[i]; if(!l) return; l.style.display='block'; l.style.left=m.lx+'%'; l.style.top=m.ly+'%'; l.textContent=m.l});
+    if(d.marks.length<2) lbls[1].style.display='none';
+  }
+  document.getElementById('rmPrev').disabled=n===1;
+  document.getElementById('rmNext').disabled=n===4;
+  openModal('resultModal');
+}
+/* history */
+function buildCal(){
+  var g=document.getElementById('calGrid'); if(!g||g.children.length) return;
+  var html=['Mo','Tu','We','Th','Fr','Sa','Su'].map(function(d){return '<div class="dow">'+d+'</div>'}).join('');
+  var practised={9:1,17:2,24:1,30:2};
+  for(var b=0;b<3;b++) html+='<span></span>';
+  for(var d=1;d<=31;d++){var p=practised[d];html+='<button class="day'+(d===30?' sel':'')+'" onclick="pickDay(this,'+d+')">'+d+(p?'<span class="dot"></span><span class="cnt">'+p+' session'+(p>1?'s':'')+'</span>':'')+'</button>'}
+  g.innerHTML=html;
+}
+function pickDay(el,d){
+  document.querySelectorAll('.cal .day').forEach(function(x){x.classList.remove('sel')}); el.classList.add('sel');
+  document.getElementById('histDayTitle').textContent='October '+d+', 2026';
+  var has=[9,17,24,30].indexOf(d)>-1;
+  document.getElementById('histSessions').innerHTML = !has
+    ? '<div class="note sage">No practice on this day yet. Days with a ● mark are days you practised.</div>'
+    : (d===30
+    ? '<div class="note sage"><b>7:32 am · Chakrasana</b><br>Steps 1 &amp; 3 correct · Steps 2 &amp; 4 corrected</div><div class="note sage"><b>6:15 am · Tāḍāsana</b><br>All steps correct</div>'
+    : '<div class="note sage"><b>Morning · Chakrasana</b><br>Steps mostly correct · 1 correction</div>');
+  var hb=document.getElementById('histDetailBtn'); if(hb) hb.style.display=has?'':'none';
+}
+/* admin */
+function adminTab(btn,key){
+  document.querySelectorAll('#s-admin .tab').forEach(function(t){t.classList.remove('on')});
+  if(btn) btn.classList.add('on'); else {var map={sub:0,puba:1,chars:2,pdfs:3,limits:4};var tabs=document.querySelectorAll('#s-admin .tab'); if(tabs[map[key]]) tabs[map[key]].classList.add('on')}
+  var B=document.getElementById('adminBody');
+  if(key==='sub') B.innerHTML='<table class="tbl"><tr><th>Asana</th><th>Submitted by</th><th>Steps</th><th></th></tr><tr><td><b>Tāḍāsana</b></td><td>Priya</td><td>3</td><td style="text-align:right"><button class="btn small" onclick="toast(\'Approved — moved to Public Library as Submitted by Priya\')">Approve</button> <button class="btn light small" onclick="openReject(this)">Reject…</button></td></tr><tr><td><b>Garudāsana</b></td><td>Arjun</td><td>3</td><td style="text-align:right"><button class="btn small" onclick="toast(\'Approved (prototype)\')">Approve</button> <button class="btn light small" onclick="openReject(this)">Reject…</button></td></tr></table><div id="rejectBox"></div>';
+  if(key==='puba') B.innerHTML='<table class="tbl"><tr><th>Public asana</th><th>Status</th><th></th></tr><tr><td><b>Chakrasana</b> · Submitted by Priya</td><td><span class="chip">Enabled</span></td><td style="text-align:right"><button class="btn light small" onclick="toast(\'Disabled. Hidden and cannot be practised. No delete exists.\')">Disable</button></td></tr><tr><td><b>Tāḍāsana</b></td><td><span class="chip">Enabled</span></td><td style="text-align:right"><button class="btn light small" onclick="toast(\'Disabled (prototype)\')">Disable</button></td></tr><tr><td><b>Old Test Pose</b></td><td><span class="chip red">Disabled</span></td><td style="text-align:right"><button class="btn light small" onclick="toast(\'Re-enabled (prototype)\')">Enable</button></td></tr></table>';
+  if(key==='chars') B.innerHTML='<p class="muted" style="line-height:1.6;margin-bottom:14px">Default-folder characters are offered first when creating an asana. Only admins can add characters.</p><table class="tbl"><tr><th>Folder</th><th>Images</th><th></th></tr><tr><td><b>default</b> · Boy, Girl</td><td>2</td><td style="text-align:right"><button class="btn light small" onclick="toast(\'Upload (prototype)\')">Add Images</button></td></tr><tr><td><b>studio</b> · Man, Woman</td><td>2</td><td style="text-align:right"><button class="btn light small" onclick="toast(\'Upload (prototype)\')">Add Images</button></td></tr></table><button class="btn ghost small" style="margin-top:16px" onclick="toast(\'New character folder upload (prototype)\')">Upload Character Folder</button>';
+  if(key==='pdfs') B.innerHTML='<table class="tbl"><tr><th>Reference book</th><th>Status</th><th></th></tr><tr><td><b>Common Yoga Protocol 2018</b> (Govt of India)</td><td><span class="chip">● Ready</span></td><td></td></tr><tr><td><b>Light on Yoga (extract)</b></td><td><span class="chip amber">◌ Processing — runs in background</span></td><td></td></tr><tr><td><b>Scanned notes.pdf</b></td><td><span class="chip red">✕ Failed — unreadable scan</span></td><td style="text-align:right"><button class="btn light small" onclick="toast(\'Failure reason: no extractable text (prototype)\')">View reason</button></td></tr></table><button class="btn ghost small" style="margin-top:16px" onclick="toast(\'PDF uploaded — parsing queued in background (prototype)\')">Upload Reference PDF</button>';
+  if(key==='limits') B.innerHTML='<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;max-width:760px"><div class="field"><label>Max feedbacks per asana</label><input value="3"></div><div class="field"><label>Registration codes per email (lifetime)</label><input value="3"></div><div class="field"><label>Failed login attempts before lock</label><input value="3"></div><div class="field"><label>Lock duration (hours)</label><input value="6"></div><div class="field"><label>Max devices per user</label><input value="3"></div></div><button class="btn" onclick="toast(\'Limits saved. Behaviour changes without code changes.\')">Save Limits</button><p class="muted" style="margin-top:14px;font-size:13.5px;line-height:1.6">Admin emails themselves live in the app config file — they are not managed here. There is no user management.</p>';
+}
+function openReject(btn){document.getElementById('rejectBox').innerHTML='<div class="note amber" style="margin-top:14px"><b>Rejection reason (required)</b><div class="field" style="margin-top:9px"><textarea rows="2">Steps do not match the reference book description</textarea></div><button class="btn small" onclick="toast(\'Rejected with reason. It stays in the user’s My Asanas and cannot be resubmitted.\')">Send Rejection</button></div>'}
+/* init */
+renderPub();
+selTab(document.querySelector('#s-select .tab'),'pub');
+buildCal();
+go('login');
+</script>
+</div>
+<div class="toast" id="toast"></div>
+</body>
+</html>

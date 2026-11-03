@@ -1,0 +1,87 @@
+# ===== Muse Yoga — root .gitignore =====
+# Rule of thumb: secrets, personal data, runtime data, heavy/regenerable files and licensed content never get committed.
+
+# ---------- Secrets ----------
+.env
+.env.*
+!.env.example
+.api.txt
+*.pem
+*.key
+*.p12
+certs/
+config/admins.json
+app/config/admins.json
+# (admins.example.json IS committed — copy it to admins.json and edit)
+
+# ---------- Local runtime data (database, uploads, generated images, saved practice photos, mail inbox) ----------
+app/data/
+data/
+*.bak-*
+db.json.before
+
+# ---------- Personal / working files ----------
+/feedback/
+/backup/
+app/review/
+*.Zone.Identifier
+*:Zone.Identifier
+
+# ---------- Licensed / third-party content (bring-your-own) ----------
+# The Government of India Common Yoga Protocol PDF etc. stay out of the repo; the folder layout is kept via reference/README.md
+reference/*
+!reference/README.md
+POC/outputs/
+
+# ---------- Dependencies and build output ----------
+node_modules/
+dist/
+build/
+.vite/
+*.tsbuildinfo
+coverage/
+
+# ---------- Pose model files (copied/downloaded by a setup script, 47 MB) ----------
+app/apps/web/public/mediapipe/
+
+# ---------- Python ----------
+__pycache__/
+*.pyc
+.venv/
+venv/
+.uvcache/
+
+# ---------- Proof-of-concept folders: keep source, drop heavy copies and media ----------
+poc/**/vendor/
+poc/**/models/
+poc/**/node_modules/
+poc/**/certs/
+poc/**/test/*.y4m
+poc/**/test/*.webm
+poc/**/test/*.mp4
+poc/**/test/*.jpg
+poc/**/test/*.png
+poc/skeleton-py/*.mp4
+poc/skeleton-py/*.png
+*.mp4
+*.y4m
+*.webm
+
+# ---------- Logs ----------
+*.log
+logs/
+cost_ledger.json
+image_audit.json
+
+# ---------- OS / editor ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*~
+
+# ---------- Source-art duplicates (the app reads app/seed/ only) ----------
+/asanas/
+/characters/

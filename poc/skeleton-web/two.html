@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skeleton POC (two cameras)</title>
+<style>
+  :root { --sage:#2F5D43; --ink:#1d2a22; --bg:#f4f6f3; --warn:#b3541e; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:12px 16px; display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  h1 { font-size:18px; margin:0 12px 0 0; color:var(--sage); }
+  button, select, input[type=text] { font:inherit; padding:8px 14px; border-radius:999px; border:1px solid var(--sage); background:#fff; color:var(--sage); }
+  input[type=text] { width:110px; } button { cursor:pointer; } button.primary { background:var(--sage); color:#fff; }
+  label { display:flex; gap:6px; align-items:center; font-size:14px; }
+  main { display:grid; grid-template-columns: 1fr 1fr; gap:14px; padding:0 16px 8px; }
+  @media (max-width:700px){ main{ grid-template-columns:1fr; } }
+  .panel { background:#fff; border:1px solid #d5dcd6; border-radius:14px; overflow:hidden; }
+  .panel h2 { margin:0; padding:8px 12px; font-size:14px; color:var(--sage); display:flex; justify-content:space-between; }
+  .panel h2 span { color:#6b786f; font-weight:400; }
+  canvas { width:100%; display:block; background:#fff; aspect-ratio:4/3; }
+  video { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }  /* decoded, never shown */
+  section { margin:0 16px 16px; background:#fff; border:1px solid #d5dcd6; border-radius:14px; padding:10px 14px; font-size:14px; }
+  table { border-collapse:collapse; width:100%; max-width:520px; } th,td { padding:3px 8px; text-align:right; } th:first-child,td:first-child { text-align:left; }
+  .sync { display:inline-block; padding:2px 10px; border-radius:999px; color:#fff; background:#888; font-size:13px; }
+  .sync.ok { background:var(--sage); } .sync.bad { background:var(--warn); }
+  .muted { color:#6b786f; font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Skeleton POC · two cameras</h1>
+  <label>Room <input type="text" id="room"></label>
+  <label>My camera is <select id="role"><option value="front">front</option><option value="side">side</option></select></label>
+  <select id="cam" title="Camera"></select>
+  <label>Model <select id="model"><option value="lite">lite (fast)</option><option value="full">full</option><option value="heavy">heavy (most accurate)</option></select></label>
+  <button id="start" class="primary">Start my camera</button>
+  <button id="stop" disabled>Stop</button>
+  <label><input type="checkbox" id="mirror" checked> Mirror mine</label>
+  <span id="conn" class="sync">connecting…</span>
+</header>
+<main>
+  <div class="panel"><h2>Front <span id="f-info">no signal</span></h2><canvas id="c-front" width="640" height="480"></canvas></div>
+  <div class="panel"><h2>Side <span id="s-info">no signal</span></h2><canvas id="c-side" width="640" height="480"></canvas></div>
+</main>
+<div class="panel" style="margin:0 16px 14px">
+  <h2>Pose check <span id="chk-info">photos are sent for judging and never stored</span></h2>
+  <div style="padding:6px 12px 12px;display:grid;gap:8px">
+    <textarea id="instr" rows="3" style="font:inherit;padding:8px;border:1px solid #d5dcd6;border-radius:10px;width:100%">Warrior II: feet wide apart, front knee bent over the ankle, back leg straight, both arms stretched out level with the shoulders, torso upright, gaze over the front hand.</textarea>
+    <div><button id="chk" class="primary">Check my pose (both cameras)</button> <span id="chk-state" class="muted"></span></div>
+    <div id="chk-out"></div>
+  </div>
+</div>
+<section>
+  <b>Frame sync:</b> <span id="sync" class="sync">waiting for both cameras</span>
+  <span class="muted"> &nbsp;display delay <span id="dly">–</span> · clock offset <span id="off">–</span> · round trip <span id="rtt">–</span></span>
+  <div class="muted" id="diag" style="margin-top:6px"></div>
+  <table id="cmp" style="margin-top:8px"></table>
+  <p class="muted">The screens show skeletons only. During a pose check each camera sends one still photo to the server, which passes both to the vision model and discards them — nothing is stored. Angles are 2D: use front for symmetry and arm height, side for spine, hips and knees.</p>
+</section>
+<video id="v" playsinline muted></video>
+<script type="module">
+import { createPose, toWire, fromWire } from "./pose.js";
+import { drawSkeleton } from "./draw.js";
+
+const $ = (id) => document.getElementById(id), params = new URLSearchParams(location.search);
+const T = (window.__two = { sent: 0, recv: { front: 0, side: 0 }, err: null, ready: false, skew: null });
+const camId = (crypto.randomUUID?.() || String(Math.random())).slice(0, 8);
+$("model").value = params.get("model") || "lite"; $("model").onchange = () => { params.set("model", $("model").value); location.search = params.toString(); };
+$("room").value = (params.get("room") || "demo").toLowerCase().replace(/[^a-z0-9_-]/g, "") || "demo";   /* same cleanup as the server: "Demo." == "demo" */ if (params.get("role")) $("role").value = params.get("role");
+const room = $("room").value;
+
+// ---------- clock sync with the relay (so frames from different devices are comparable) ----------
+let offset = 0, bestRtt = Infinity;                   // serverTime ≈ performance.now() + offset
+const now = () => performance.now() + offset;
+let ws;
+const ping = () => ws?.readyState === 1 && ws.send(JSON.stringify({ t: "ping", c: performance.now() }));
+setInterval(ping, 3000);
+function connect() {
+  ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws?room=${encodeURIComponent(room)}`);
+  ws.onopen = () => { $("conn").textContent = "connected"; $("conn").className = "sync ok"; bestRtt = Infinity; for (let i = 0; i < 6; i++) setTimeout(ping, i * 150); };
+  ws.onclose = () => { $("conn").textContent = "disconnected — retrying"; $("conn").className = "sync bad"; setTimeout(connect, 1000); };
+  ws.onmessage = onMsg;
+}
+
+// ---------- per-role panels ----------
+const panels = {}; for (const r of ["front", "side"]) panels[r] = { r, canvas: $("c-" + r), ctx: $("c-" + r).getContext("2d"), info: $(r[0] + "-info"), last: null, shown: null, buf: [], lastAt: 0, n: 0, local: false };
+// Jitter buffer: frames are stored by capture time and displayed D ms late, so the two cameras
+// are always drawn/compared at the SAME moment instead of "whatever arrived last".
+let DLY = 150; const ages = [];                       // D = display delay; ages = recent network delays of remote frames
+function show(role, res, m, local) {
+  const P = panels[role]; if (!P) return;
+  P.buf.push({ res, ts: m.ts, w: m.w, h: m.h, local });
+  const t = now(); while (P.buf.length && P.buf[0].ts < t - 2500) P.buf.shift();
+  if (!local) { ages.push([performance.now(), t - m.ts]); while (ages.length && ages[0][0] < performance.now() - 4000) ages.shift(); }
+  P.lastAt = performance.now(); P.n++; T.recv[role] = P.n;
+}
+function render() {
+  const target = now() - DLY;
+  for (const P of Object.values(panels)) {
+    let pick = null;
+    for (let i = P.buf.length - 1; i >= 0; i--) if (P.buf[i].ts <= target) { pick = P.buf[i]; break; }
+    pick ||= P.buf[0]; if (!pick || pick === P.shown) continue;
+    P.shown = pick; P.last = pick; P.local = pick.local;
+    if (P.canvas.width !== pick.w || P.canvas.height !== pick.h) { P.canvas.width = pick.w; P.canvas.height = pick.h; }
+    if (pick.res) drawSkeleton(P.ctx, pick.res.pts, { mirror: pick.local && $("mirror").checked });
+    else { P.ctx.fillStyle = "#fff"; P.ctx.fillRect(0, 0, pick.w, pick.h); }
+  }
+}
+setInterval(render, 33);
+function onMsg(e) {
+  const m = JSON.parse(e.data);
+  if (m.t === "pong") {
+    const t1 = performance.now(), rtt = t1 - m.c;
+    if (rtt <= bestRtt * 1.5 + 2) { if (rtt < bestRtt) bestRtt = rtt; offset = m.s + rtt / 2 - t1; }
+    $("off").textContent = offset.toFixed(0) + " ms"; $("rtt").textContent = rtt.toFixed(0) + " ms"; return;
+  }
+  if (m.t === "capture") return onCapture(m);
+  if (m.t === "result") return onResult(m);
+  if (m.t === "busy") { $("chk-state").textContent = "A check is already running — wait a few seconds."; return; }
+  if (m.t === "frame" && m.v === 1 && panels[m.role]) show(m.role, fromWire(m), m, false);
+}
+connect();
+
+// ---------- my camera: detect → draw locally → send landmarks ----------
+const D = { frames: 0, hits: 0, inferMs: 0, t0: performance.now(), n: 0 };
+const video = $("v"); let pose = null, stream = null, running = false, lastTs = -1, lastSend = 0, lastDet = 0;
+const DET_MS = 1000 / (+params.get("fps") || 25);      // cap detection: leaves the main thread free to receive the other camera's frames
+createPose({ model: `./models/pose_landmarker_${params.get("model") || "lite"}.task`, delegate: params.get("delegate") === "CPU" ? "CPU" : "GPU" }).then((p) => { pose = p; T.ready = true; }).catch((e) => { T.err = String(e); });
+async function listCams() { const d = (await navigator.mediaDevices.enumerateDevices()).filter((x) => x.kind === "videoinput"); $("cam").innerHTML = d.map((x, i) => `<option value="${x.deviceId}">${x.label || "Camera " + (i + 1)}</option>`).join(""); }
+async function start() {
+  if (!pose) return;
+  if (params.get("video")) { video.src = params.get("video"); video.loop = true; await video.play(); }
+  else try { stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: $("cam").value ? { exact: $("cam").value } : undefined, width: { ideal: 640 }, height: { ideal: 480 } }, audio: false }); }
+  catch (e) { T.err = String(e); $("conn").textContent = "Camera: " + e.name; $("conn").className = "sync bad"; return; }
+  if (stream) { video.srcObject = stream; await video.play(); await listCams(); }
+  pose.reset(); running = true; $("start").disabled = true; $("stop").disabled = false; $("role").disabled = true; requestAnimationFrame(loop);
+}
+function stop() { running = false; stream?.getTracks().forEach((t) => t.stop()); stream = null; video.srcObject = null; $("start").disabled = false; $("stop").disabled = true; $("role").disabled = false; }
+$("start").onclick = start; $("stop").onclick = stop;
+function loop() {
+  if (!running) return;
+  if (performance.now() - lastDet >= DET_MS && video.readyState >= 2 && video.currentTime !== lastTs) {
+    lastTs = video.currentTime; lastDet = performance.now();
+    const ts = now(), w = video.videoWidth, h = video.videoHeight;
+    const t0 = performance.now();
+    const res = pose.detect(video, t0, w, h, 0.5);
+    D.frames++; if (res) D.hits++; D.inferMs += performance.now() - t0; D.n++;
+    const m = toWire(res, { cam: camId, role: $("role").value, ts, w, h });
+    show(m.role, res, m, true);
+    if (ts - lastSend >= 50 && ws.readyState === 1) { ws.send(JSON.stringify(m)); lastSend = ts; T.sent++; }   // ≤20 fps on the wire
+  }
+  requestAnimationFrame(loop);
+}
+
+// ---------- readout: ages, sync, angle comparison ----------
+const ANG = ["L elbow", "R elbow", "L shoulder", "R shoulder", "L hip", "R hip", "L knee", "R knee"];
+setInterval(() => {
+  if (ages.length > 5) { const s = ages.map((x) => x[1]).sort((a, b) => a - b), p90 = s[Math.floor(s.length * 0.9)]; DLY = DLY * 0.9 + Math.min(500, Math.max(120, p90 + 40)) * 0.1; $("dly").textContent = DLY.toFixed(0) + " ms (network p90 " + p90.toFixed(0) + " ms)"; }
+  const fresh = {};
+  for (const P of Object.values(panels)) {
+    const age = performance.now() - P.lastAt, live = P.last && age < 1000;
+    P.info.textContent = !P.last ? "no signal" : !live ? "signal lost" : !P.last.res ? "no person" : (P.last.res.inFrame ? "in frame" : "partly out: " + P.last.res.missing.join(", ")) + (P.local ? " · this device" : "");
+    if (live && P.last.res) fresh[P.r] = P.last;
+  }
+  const S = $("sync");
+  if (fresh.front && fresh.side) {
+    const skew = Math.abs(fresh.front.ts - fresh.side.ts); T.skew = skew;
+    S.textContent = `skew ${skew.toFixed(0)} ms — ${skew < 150 ? "in sync" : "out of sync"}`; S.className = "sync " + (skew < 150 ? "ok" : "bad");
+  } else { S.textContent = "waiting for both cameras"; S.className = "sync"; }
+  $("cmp").innerHTML = "<tr><th>Angle</th><th>Front</th><th>Side</th></tr>" + ANG.map((k) => {
+    const f = fresh.front?.res.angles[k], s = fresh.side?.res.angles[k];
+        return `<tr><td>${k}</td><td>${f == null ? "–" : f + "°"}</td><td>${s == null ? "–" : s + "°"}</td></tr>`; }).join("");
+  if (running) { const sec = (performance.now() - D.t0) / 1000; $("diag").textContent = `This device: ${pose.delegate} · ${video.videoWidth}×${video.videoHeight} · ${(D.frames / sec).toFixed(1)} fps · inference ${(D.inferMs / Math.max(1, D.n)).toFixed(0)} ms · person found in ${(100 * D.hits / Math.max(1, D.frames)).toFixed(0)}% of frames · sent ${T.sent}`; if (sec > 5) { D.t0 = performance.now(); D.frames = D.hits = D.inferMs = D.n = 0; } }
+}, 250);
+// ---------- pose check: countdown -> still from each camera -> server (RAM) -> vision model -> text verdict ----------
+$("chk").onclick = () => { $("chk-out").innerHTML = ""; $("chk-state").textContent = "starting…"; $("chk").disabled = true; ws.send(JSON.stringify({ t: "check", instruction: $("instr").value })); setTimeout(() => ($("chk").disabled = false), 4000); };
+function onCapture(m) {
+  const wait = Math.max(0, m.at - now());
+  const tick = setInterval(() => { const s = Math.ceil((m.at - now()) / 1000); $("chk-state").textContent = s > 0 ? `Hold the pose… capturing in ${s}` : "Captured — checking…"; }, 200);
+  setTimeout(async () => {
+    clearInterval(tick); $("chk-state").textContent = "Captured — checking…";
+    if (!running || video.readyState < 2) return;                                     // this device is only a viewer
+    const c = document.createElement("canvas"), w = video.videoWidth, hh = video.videoHeight, k = Math.min(1, 960 / Math.max(w, hh));
+    c.width = Math.round(w * k); c.height = Math.round(hh * k); c.getContext("2d").drawImage(video, 0, 0, c.width, c.height);
+    const blob = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.8));              // never shown, saved or logged here
+    c.width = c.height = 0;
+    try { const r = await fetch(`/capture/${m.id}/${$("role").value}?room=${encodeURIComponent(room)}`, { method: "POST", headers: { "Content-Type": "image/jpeg" }, body: blob }); T.captured = r.status; }
+    catch (e) { T.captured = String(e); }
+  }, wait);
+}
+function onResult(m) {
+  T.result = { verdict: m.verdict, n: m.checks?.length, views: m.views };
+  $("chk-state").textContent = m.views ? `judged from ${m.views.join(" + ")} view${m.views.length > 1 ? "s" : ""}${m.ms ? " in " + (m.ms / 1000).toFixed(1) + " s" : ""} · photos discarded` : "";
+  const col = m.verdict === "correct" ? "var(--sage)" : m.verdict === "incorrect" ? "var(--warn)" : "#888";
+  const lbl = { correct: "Looks right", incorrect: "Needs adjusting", could_not_check: "Could not check" }[m.verdict] || m.verdict;
+  const esc = (t) => String(t).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  const icon = { met: "✓", not_met: "✗", unseen: "?" };
+  $("chk-out").innerHTML = `<div><span class="sync" style="background:${col}">${lbl}</span></div><p style="margin:8px 0">${esc(m.correction || "")}</p>` +
+    (m.checks?.length ? `<table>${m.checks.map((c) => `<tr><td style="text-align:left">${icon[c.status] || "·"} ${esc(c.requirement)}</td><td style="text-align:left">${esc(c.view)}</td><td style="text-align:left" class="muted">${esc(c.note)}</td></tr>`).join("")}</table>` : "");
+}
+navigator.mediaDevices?.enumerateDevices && listCams();
+if (params.get("auto")) setTimeout(function w() { pose ? start() : setTimeout(w, 200); }, 100);
+</script>
+</body>
+</html>

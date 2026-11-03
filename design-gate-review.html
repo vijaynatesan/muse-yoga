@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design Phase Gate Review — Muse Yoga</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#EAF0E9;--surface:#fff;--soft:#F2F6F0;--ink:#223129;--ink2:#3E5744;--line:#D8E2D4;--deep:#2F5D43;--deep2:#24493A;--clay:#8F4B1C;--claybg:#FAEDE2;--amber:#6E5205;--amberbg:#FBF0D2;--red:#B23B2C;--redbg:#FBEAE6;--r:18px;--sh:0 10px 28px rgba(46,74,56,.09)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Outfit",system-ui,sans-serif;background:#EAF0E9;color:var(--ink);line-height:1.6}
+.display{font-family:"Fraunces",Georgia,serif;font-weight:600}
+.wrap{max-width:980px;margin:0 auto;padding:28px 22px 64px}
+header.top{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);padding:30px 34px;margin-bottom:18px}
+header.top h1{font-size:34px;line-height:1.12;color:var(--deep2)}
+header.top p{color:var(--ink2);margin-top:8px;max-width:70ch}
+.chip{display:inline-block;padding:6px 12px;border-radius:999px;background:#DCE8D8;border:1px solid #C4D6C2;color:#2F4A37;font-size:12.5px;font-weight:800;margin:10px 8px 0 0}
+.chip.amber{background:var(--amberbg);border-color:#EAD9A8;color:var(--amber)}
+.chip.clay{background:var(--claybg);border-color:#EBCDB2;color:var(--clay)}
+.chip.red{background:var(--redbg);border-color:#F0C6BD;color:var(--red)}
+nav.toc{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);padding:16px 22px;margin-bottom:18px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+nav.toc b{color:var(--deep)}
+nav.toc a{color:var(--deep);font-weight:700;text-decoration:none;background:var(--soft);border:1px solid var(--line);padding:8px 14px;border-radius:999px;font-size:14px}
+section{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);padding:28px 32px;margin-bottom:18px}
+section h2{font-size:26px;color:var(--deep2);margin-bottom:6px}
+section h3{font-size:19px;color:var(--deep2);margin:20px 0 6px}
+section p,section li{color:var(--ink2)}
+section p{margin:8px 0}
+ol.disp{margin:10px 0 4px 22px}
+ol.disp li{margin:10px 0;color:var(--ink2)}
+ol.disp li b{color:var(--ink)}
+.tag{display:inline-block;font-size:11.5px;font-weight:800;letter-spacing:.03em;padding:3px 9px;border-radius:999px;vertical-align:2px;margin-left:6px}
+.tag.acc{background:#DCE8D8;color:#2F4A37;border:1px solid #C4D6C2}
+.tag.prov{background:var(--amberbg);color:var(--amber);border:1px solid #EAD9A8}
+.tag.new{background:var(--claybg);color:var(--clay);border:1px solid #EBCDB2}
+.note{border-radius:13px;padding:14px 17px;font-size:14.5px;line-height:1.6;margin:14px 0}
+.note.sage{background:#E7F0E7;color:var(--deep);border:1px solid #CBE0D2}
+.note.amber{background:var(--amberbg);color:#6E5205;border:1px solid #EAD9A8}
+.note.red{background:var(--redbg);color:var(--red);border:1px solid #F0C6BD}
+.flow{background:var(--soft);border:1px solid var(--line);border-radius:14px;padding:16px 20px;margin:14px 0;font-size:15px}
+.flow b{color:var(--deep2)}
+.arrow{color:var(--deep);font-weight:800;padding:0 2px}
+code{background:var(--soft);border:1px solid var(--line);border-radius:7px;padding:1px 7px;font-size:.92em;color:var(--deep2)}
+a{color:var(--deep);font-weight:700}
+ul{margin:8px 0 8px 22px}
+ul li{margin:6px 0}
+.stack{font-size:15.5px;color:var(--ink2)}
+.qbox{border:1.5px solid #EAD9A8;background:#FFFDF4;border-radius:14px;padding:16px 19px;margin:12px 0}
+.qbox b{color:var(--amber)}
+footer{color:var(--ink2);font-size:13.5px;text-align:center;padding:8px 0 0}
+.arch{border:1.5px solid var(--line);border-radius:16px;background:var(--soft);padding:18px;margin:16px 0}
+.arch .layerlab{font-size:12px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--deep);margin:12px 0 8px}
+.arch .layerlab:first-child{margin-top:0}
+.archrow{display:flex;gap:10px;flex-wrap:wrap}
+.abox{background:#fff;border:1.5px solid var(--line);border-radius:13px;padding:12px 15px;flex:1;min-width:180px}
+.abox b{color:var(--deep2);display:block;font-size:15px}
+.abox span{font-size:13px;color:var(--ink2);line-height:1.45;display:block;margin-top:2px}
+.abox.primary{border-color:var(--deep);background:#EDF4EC}
+.abox.ext{border-style:dashed;background:#FFFDF4}
+.aarrow{text-align:center;color:var(--deep);font-weight:800;font-size:13px;padding:7px 0 1px;line-height:1.35}
+.aarrow small{display:block;font-weight:600;color:var(--ink2)}
+.layercards{display:flex;flex-direction:column;gap:10px;margin:14px 0}
+.lcard{display:flex;gap:16px;background:var(--soft);border:1px solid var(--line);border-radius:14px;padding:15px 18px}
+.lcard .n{flex:none;width:34px;height:34px;border-radius:50%;background:var(--deep);color:#fff;display:grid;place-items:center;font-weight:800}
+.lcard h4{font-size:16px;color:var(--deep2)}
+.lcard p,.lcard li{font-size:14.5px}
+.lcard ul{margin:4px 0 0 18px}
+.seq{background:#10201A;color:#EAF3E8;border-radius:14px;padding:16px 20px;margin:14px 0;font-size:14.5px;line-height:1.65}
+.seq b{color:#FFE1A6}
+.seq .dim{color:#B9CDB9}
+@media(max-width:640px){.lcard{flex-direction:column;gap:8px}.abox{min-width:100%}}
+@media print{body{background:#fff}section,header.top,nav.toc{box-shadow:none;break-inside:avoid}}
+@media(max-width:640px){section,header.top{padding:22px 20px}header.top h1{font-size:27px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <div class="display" style="font-size:21px;color:var(--deep)">Muse Yoga</div>
+  <h1 class="display">Design Phase — Gate Review</h1>
+  <p>This page replaces the Markdown reply for reading. It contains: (1) dispositions for every scope change C1–C14 plus the new voice feature as C15, (2) contradictions beyond that list, and (3) the proposed stack in one paragraph. <b>Nothing here is <code>design.MD</code> yet</b> — it is waiting for your approval.</p>
+  <span class="chip">Status: awaiting your approval</span><span class="chip amber">C1 provisional · C5 / C15 to-prove</span><span class="chip clay">New: C15 voice “Ready” gate</span>
+  <p style="margin-top:14px">Prototype reference: <a href="prototype/index.html">open the clickable prototype</a> (Login → Public Library → Practise). Start command if it is not running: <code>python3 -m http.server 5173</code> from the workspace root, then open <code>http://localhost:5173/prototype/index.html</code>.</p>
+</header>
+<nav class="toc"><b>Contents</b><a href="#dispositions">1 · Dispositions C1–C15</a><a href="#contradictions">2 · Contradictions</a><a href="#stack">3 · Stack</a><a href="#voice">4 · C15 voice feature in detail</a><a href="#questions">5 · Questions for you</a></nav>
+
+<section id="dispositions">
+<h2 class="display">1 &nbsp;Disposition for every scope change</h2>
+<p>“Accept” means: write it into a scope revision in <code>design.MD</code>. “Revert” would mean: change the UI back to <code>scope.MD</code> before designing. One line of reasoning each.</p>
+<ol class="disp">
+<li><b>C1 — First device is AUTO-Primary.</b> <span class="tag prov">Accept · provisional</span> Owner-directed; keep role assignment as a server-side switch (“auto-first” vs “first-claim”) so reverting after user testing costs no protocol change.</li>
+<li><b>C2 — [Make This Device Primary] on every Secondary, queued mid-capture.</b> <span class="tag acc">Accept</span> Scope §13.1 already gives the tap; queuing to the step boundary only stops a capture set being split across two speaking Primaries.</li>
+<li><b>C3 — Auto-promotion if the Primary leaves pre-session.</b> <span class="tag acc">Accept</span> Scope is silent, and C1 deadlocks without a promotion rule.</li>
+<li><b>C4 — Demo Offer → Demo Playback → Ready Gate before any capture.</b> <span class="tag acc">Accept</span> It does not change the §13.3 script; it only makes Ready the sole entry to it, so selecting an asana never starts counting.</li>
+<li><b>C5 — Out-of-frame detection &amp; Framing Warning (pause/resume).</b> <span class="tag prov">Accept · conditional</span> It closes the “pose cannot be measured” case, but design must prove on-device detection without storing photos — or flag it back (assumption A9).</li>
+<li><b>C6 — Explicit “Select Asana” step, two entry orders.</b> <span class="tag acc">Accept</span> Scope assumes an asana is already chosen; this makes the generic entry workable and gives pre-selected arrivals a confirm-or-switch point.</li>
+<li><b>C7 — Per-asana contraindications inside the Disclaimer.</b> <span class="tag acc">Accept</span> It discharges §13.4 properly; a generic-only acknowledgement would be uninformed.</li>
+<li><b>C8 — Clickable Results steps → large annotated view.</b> <span class="tag acc">Accept</span> §14.2 already requires the annotated character image per step; the modal is presentation and stays on programmatic overlay, never AI image-editing.</li>
+<li><b>C9 — Global header on every screen except coaching.</b> <span class="tag acc">Accept</span> Branding and shell only; coaching keeps its slim strip and stays readable at a distance.</li>
+<li><b>C10 — No scroll, anywhere.</b> <span class="tag acc">Accept</span> Owner hard rule; meet it with viewport budgets and pagination for libraries, history, and admin — not by shrinking or hiding essentials.</li>
+<li><b>C11 — Coaching layout: equal split, minimal at all times.</b> <span class="tag acc">Accept</span> Direct layout reading of §13.2 (own body vs. stored target as equal halves, secondaries as a small strip) with the same layout between steps as in pose.</li>
+<li><b>C12 — Public / Personal / Favourites share one card grammar.</b> <span class="tag acc">Accept</span> Identical asana identity across §§11–12, with personal-only actions as state-driven additions, not a second layout.</li>
+<li><b>C13 — Origin-aware back navigation everywhere.</b> <span class="tag acc">Accept</span> No scope rule forbids it, and bare links would lose the library the user came from.</li>
+<li><b>C14 — Disclaimer/selection state is never silently reused.</b> <span class="tag acc">Accept</span> Safety invariant: a new asana invalidates the old highlight, caution box, and checkbox.</li>
+<li><b>C15 — Voice “Ready” gate before every step (new, this request).</b> <span class="tag acc">Accept · corrected 2026-10-31</span> There is only one click in the whole practice flow — <b>Start</b> on the demo / skip-demo Start screen. After that click, every step starts by voice alone. A timeout returns to that same Start screen (see §4); there is no per-step click. Creates a new to-prove assumption A10.</li>
+</ol>
+<div class="note sage">Net result if you approve as proposed: C1–C14 all accepted (C1 provisional, C5 conditional), plus C15. Nothing is reverted to scope as written, and nothing is dropped silently.</div>
+</section>
+
+<section id="contradictions">
+<h2 class="display">2 &nbsp;Contradictions beyond the C-list</h2>
+<p>Between <code>scope.MD</code> and <code>uidesign.MD</code>, not already recorded in <code>UItoDesignHandoff.MD</code> §2:</p>
+<ol class="disp">
+<li><b>Mobile Secondary drops the other-device feeds.</b> Scope §13.2 requires <i>every</i> device to show the other devices’ live feeds; uidesign §3.9 omits them on mobile Secondary (owner question Q3). C11 covers the Primary layout, not this per-device exception.</li>
+<li><b>Camera-less Primary.</b> Scope §13.1 says the Primary “has audio and also captures photos” and §14.1 defines a set as one photo per device, yet uidesign §3.11b lets the Primary “Continue without this camera” before Step 1 (Q4). That changes what a validation set contains.</li>
+<li><b>Step list reduced to a number strip.</b> Scope §13.2 requires “the list of all steps … with the current step highlighted”; uidesign §3.6 renders a one-row number strip plus an instruction panel (Q2). C11 is about split sizing, not this reading of “list.”</li>
+<li><b>Practice Again skips the Disclaimer.</b> Scope §13.4 requires the disclaimer “before a practice session begins,” but uidesign §7 returns Practice Again straight to the Ready Gate with no new disclaimer. C6 covers first entry and reselect; the redo case needs a “same session vs. new session” ruling.</li>
+</ol>
+<p>No further contradictions found. The remaining shared rules (redo all steps, no score, disable-only deletion, whole-asana regeneration on accepted feedback) agree in both documents.</p>
+</section>
+
+<section id="stack">
+<h2 class="display">3 &nbsp;Proposed technology stack &amp; architecture</h2>
+<p>One sentence first, then the picture, then layer by layer. <b>One TypeScript monorepo: React in the browser, Node.js/Fastify on the server, one WebSocket session authority, PostgreSQL + object storage for data, background jobs for every AI call, and the Meta APIs reached only from the server.</b></p>
+
+<div class="arch" role="img" aria-label="Architecture diagram: up to three browsers connect over HTTPS, WebSocket and WebRTC to a session service and API; the server runs background AI jobs and stores data in PostgreSQL, object storage and Redis; Meta APIs and email are external and server-side only.">
+<div class="layerlab">Layer 1 — User devices (same user, max 3)</div>
+<div class="archrow">
+<div class="abox primary"><b>★ Primary browser</b><span>Speaks (TTS) · listens only in the C15 window · camera · one Start tap on the Start screen</span></div>
+<div class="abox"><b>Secondary browser ×2</b><span>Camera only · muted · no microphone · small “waiting / capture” display</span></div>
+</div>
+<div class="aarrow">↓ &nbsp;HTTPS pages &amp; API &nbsp;·&nbsp; WebSocket session events &nbsp;·&nbsp; WebRTC live video between devices<small>photos and voice audio travel in memory only — neither is ever stored</small></div>
+<div class="layerlab">Layer 2 — In the browser (React + Vite, TypeScript)</div>
+<div class="archrow">
+<div class="abox"><b>App screens</b><span>Libraries, creation wizard, admin, history. No-scroll layouts; lists paginate.</span></div>
+<div class="abox"><b>Coaching screen</b><span>Equal camera | reference split, count band, framing badge, Listening state.</span></div>
+<div class="abox"><b>On-device checks</b><span><code>getUserMedia</code> camera + mic. MediaPipe Pose framing (C5). No photo leaves except for validation.</span></div>
+</div>
+<div class="aarrow">↓ &nbsp;typed API calls &nbsp;·&nbsp; session messages (join, role, demo, listening, capture-at)<small>the browser never holds the Meta API key</small></div>
+<div class="layerlab">Layer 3 — Server (Node.js / Fastify, TypeScript)</div>
+<div class="archrow">
+<div class="abox primary"><b>Session service (authority)</b><span>Roles, step machine, capture-at timestamps, demo &amp; voice broadcast, disconnect detection.</span></div>
+<div class="abox"><b>API + business rules</b><span>OTP &amp; lockouts, libraries, publishing, favourites, history, admin limits.</span></div>
+<div class="abox"><b>Job workers (Redis queue)</b><span>PDF parsing, step &amp; image generation, vision gate, validation, annotation, transcription.</span></div>
+</div>
+<div class="aarrow">↓ &nbsp;rows, counters &amp; state &nbsp;·&nbsp; files &nbsp;·&nbsp; queued jobs<small>counters that must never race (OTP, feedback, devices) update atomically</small></div>
+<div class="layerlab">Layer 4 — Stored data</div>
+<div class="archrow">
+<div class="abox"><b>PostgreSQL</b><span>Users, asanas &amp; steps, favourites, history (text + annotated images), limits.</span></div>
+<div class="abox"><b>Object storage (S3-style)</b><span>Character images, stored step images (write-once), annotated variants, PDFs.</span></div>
+<div class="abox"><b>Redis</b><span>Job queue, session presence, short-lived OTP and sync state.</span></div>
+</div>
+<div class="aarrow">↓ &nbsp;server-side calls only, key in server secrets<small>browsers talk to our server; our server talks to Meta and email</small></div>
+<div class="layerlab">Layer 5 — External services (never called from the browser)</div>
+<div class="archrow">
+<div class="abox ext"><b>muse-wonder-1.0</b><span>Steps &amp; metadata (~6 s) · feedback checks · pose judgement (~10 s/step)</span></div>
+<div class="abox ext"><b>muse-image-1.0</b><span><code>images/edits</code> only, character as reference (11–35 s/image)</span></div>
+<div class="abox ext"><b>Voice Transcribe · Email</b><span>“Ready” transcription (A10, to-prove) · OTP delivery</span></div>
+</div>
+</div>
+
+<h3>Layer by layer — what each part does, and why this choice</h3>
+<div class="layercards">
+<div class="lcard"><div class="n">1</div><div><h4>Devices — Primary speaks and listens, Secondaries only watch and film</h4><ul><li>Primary: TTS announcements, microphone (C15 window only), camera.</li><li>Secondaries: camera only, muted, no mic — scope §13.1 unchanged.</li><li>Live video between devices uses WebRTC; the session service only introduces the devices to each other.</li></ul></div></div>
+<div class="lcard"><div class="n">2</div><div><h4>Browser app — React + Vite, TypeScript</h4><ul><li>All screens from the approved prototype, rebuilt properly (prototype code is throwaway).</li><li>No-scroll contract: every screen fits the viewport; long lists paginate (C10).</li><li>Camera frames for framing (MediaPipe Pose) are checked <b>on the device</b> and thrown away — checking never uploads a photo.</li><li>Photos for validation are held as in-memory blobs and discarded after the result.</li></ul></div></div>
+<div class="lcard"><div class="n">3</div><div><h4>Session service — the single clock and referee for practice</h4><ul><li>Owns the state machine: Setup → Disclaimer → Start screen → per-step Intro → Framing → Voice/Listening → Counting/Capture → … → Analysing → Results. Listening timeout returns to the Start screen; there is no per-step click state.</li><li>Capture is scheduled at a <b>server timestamp (+1200 ms lead)</b> with per-device clock correction — the exact POC mechanism.</li><li>Role switches (C2) take effect at step boundaries; disconnects are detected by heartbeat and announced on the Primary.</li></ul></div></div>
+<div class="lcard"><div class="n">4</div><div><h4>API + business rules — Fastify services, rules written once as testable logic</h4><ul><li>Auth/OTP, device limit, libraries, publication workflow, favourites, history, admin limits.</li><li>Limits (feedback 3, OTP 3, lock 6 h, devices 3) are data an admin can change, not code constants.</li><li>Every rule is enforced on the server; the browser only displays the outcome.</li></ul></div></div>
+<div class="lcard"><div class="n">5</div><div><h4>Background jobs — anything slow never blocks a screen</h4><ul><li>Reference-PDF parsing after upload (status: Processing / Ready / Failed).</li><li>Asana creation: steps, then one gated image per step, with per-step progress to the waiting UI.</li><li>Pose validation after the final step (~10 s/step), then programmatic annotation.</li><li>Voice transcription during the 10 s Listening window, streamed so “Ready” is acted on at once.</li></ul></div></div>
+<div class="lcard"><div class="n">6</div><div><h4>Data — PostgreSQL for facts, object storage for files</h4><ul><li>PostgreSQL: users, OTP counters, asanas, steps, favourites, sessions, history text.</li><li>Object storage: characters, stored step images (written once, read every session, never regenerated), annotated images, uploaded PDFs.</li><li><b>Deliberately absent:</b> no table or bucket for user photos or voice audio — history holds text + annotated character images only.</li></ul></div></div>
+</div>
+
+<h3>Two journeys through the diagram</h3>
+<div class="seq"><b>Practice:</b> Start screen (demo / skip demo) — user clicks <b>Start once</b> <span class="dim">→</span> Step 1: framing OK <span class="dim">→</span> “Say Ready…” <span class="dim">→</span> voice “Ready” <span class="dim">(or 10 s pass → apology → back to the Start screen; clicking Start there returns to the same step and asks by voice again)</span> <span class="dim">→</span> capture-at timestamp to all devices <span class="dim">→</span> 3 sets, 3 s apart <span class="dim">→</span> next step asks by voice again, no click <span class="dim">→</span> …final step… <span class="dim">→</span> validation jobs <span class="dim">→</span> Results spoken + history saved <span class="dim">(text + annotated character images only)</span>.</div>
+<div class="seq"><b>Create an asana:</b> Name + character <span class="dim">→</span> reference &amp; duplicate checks <span class="dim">→</span> wonder writes steps (~6 s) <span class="dim">→</span> you review steps <span class="dim">→</span> image jobs, one per step, each vision-gated (1–2 min, progress shown) <span class="dim">→</span> you review, optionally feedback (checks → whole asana regenerated) <span class="dim">→</span> Accept saves images once, forever.</div>
+
+<h3>How each POC-proven behaviour survives this stack</h3>
+<ul>
+<li><b>Synchronised capture (9–148 ms, 3 devices):</b> same mechanism, not a new invention — server timestamp + clock-offset correction, now inside the session service.</li>
+<li><b>Gated image generation (11–35 s/image):</b> <code>images/edits</code> with the character image only, character-lock + anatomy prompts, vision gate after every image, regenerate on failure (max 3). Never a text-only fallback.</li>
+<li><b>Feedback chain:</b> intent (line by line) → reference exists → alignment, each submission standalone, rejected attempts count toward the limit, acceptance regenerates everything.</li>
+<li><b>Observed timings (~6 s steps, ~10 s/step validation, 1–2 min creation):</b> the reason creation and validation are queued jobs with honest per-step progress instead of spinners or blocking requests.</li>
+<li><b>New and unproven (flagged, not hidden):</b> WebRTC live feeds (A1) fall back to POC-proven capture thumbnails; voice transcription (A10), when not heard, returns to the existing Start screen — there is no per-step click fallback.</li>
+</ul>
+</section>
+
+<section id="voice">
+<h2 class="display">4 &nbsp;New feature C15 — voice “Ready” gate (practice session only)</h2>
+<p>Your specification, restated precisely so <code>design.MD</code> can implement exactly this. Defaults I have chosen where you were silent are marked <b>DEFAULT</b> and collected as questions in §5.</p>
+
+<h3>Where it sits — one click in the whole flow, then voice only</h3>
+<p>There is exactly <b>one</b> click: <b>Start</b> on the Start screen — the screen where you choose to watch the demo or skip it and start the asana. Clicking Start enters coaching. From then on, <b>every step, including Step 1, starts by voice alone. There is no per-step click, button, or tap anywhere in coaching.</b> Sequence for Step 1: click Start → walk to the mat → get into position → say “Ready” → counting begins. Later steps never return to a button; each one asks by voice again.</p>
+<div class="note sage"><b>Correction (2026-10-31):</b> an earlier draft of this page invented a per-step “Click-to-Start gate.” That does not exist and has been removed everywhere. The timeout path returns to the <b>existing</b> Start screen, as specified below.</div>
+
+<h3>Per-step sequence (replaces nothing after counting starts)</h3>
+<div class="flow">
+<b>S1 Step intro.</b> Primary speaks “Step N” + the full instruction (as today). <span class="arrow">→</span>
+<b>Framing check.</b> Counting cannot be armed until every camera reports fully-in-view (C5). If not, the Framing Warning speaks instead and no listening starts. <span class="arrow">→</span>
+<b>Voice prompt.</b> Primary speaks: <i>“Say ‘Ready’ when you are in position.”</i> Only when that speech has <b>finished</b> does listening open — so the app never transcribes its own voice. <span class="arrow">→</span>
+<b>LISTENING (max 10 s).</b> Primary microphone only; Secondaries stay muted and mic-less (scope §13.1). Screen shows a large “Listening… say Ready” state with a 10-second countdown ring. Recognition switches <b>off immediately</b> when “Ready” is heard, when 10 s elapse, or on any error. <span class="arrow">→</span>
+<b>Heard “Ready” →</b> proceed at once to “Get ready — 1, 2, 3,” captures ×3, exactly as scope §13.3. <span class="arrow">·</span>
+<b>Not heard →</b> Primary speaks: <i>“Sorry, I didn’t hear you say Ready. Click Start when you want to start.”</i> Recognition is already off. The app <b>goes back to the Start screen</b> (the demo / skip-demo screen with the Start click). No counting happens there.
+</div>
+
+<h3>Timeout — back to the Start screen (no per-step click exists)</h3>
+<ul>
+<li>The app returns to the <b>existing Start screen</b> — where the user can see the demo or skip it and click <b>Start</b>. It does not create a new screen, and coaching gains no button.</li>
+<li>Progress is kept: completed steps stay completed, valid captured sets stay filled, and the pending step stays pending. Returning does not restart the asana and does not skip the step.</li>
+<li>Clicking <b>Start</b> there re-enters coaching <b>at the same pending step</b> and runs the voice prompt for that step again (“Step N” → framing → “Say ‘Ready’…”). The click itself never starts counting — after the click, the step still needs the spoken “Ready,” exactly like every other step.</li>
+<li>So the click has one job only, at the Start screen: enter (or re-enter) coaching. Inside coaching, voice is the only start signal, for every step.</li>
+</ul>
+
+<h3>Recognition mechanics (what design must build)</h3>
+<ul>
+<li><b>Primary-only microphone</b> via <code>getUserMedia</code>, with an explicit Enable Microphone step alongside Enable Camera in Device Setup, and the same plain-language blocked state if permission is denied. Denied or failing mic follows the same path as a timeout — apology, back to the Start screen with the reason shown there — so the user can fix the mic and click Start to try voice again. There is no tap that bypasses voice inside coaching.</li>
+<li><b>API:</b> Muse Voice Transcribe API with the same project API key, called <b>only from the backend</b> (key never in the browser). The browser streams short audio chunks during the 10 s window; the backend returns a transcript decision as soon as the word is recognised, so “Ready” at second 2 does not wait until second 10.</li>
+<li><b>Match rule (DECIDED, extended 2026-10-31):</b> accepted phrases are <b>“ready”</b>, <b>“I’m ready”</b>, and <b>“let us start”</b> (plus “let’s start / I am ready”), matched as whole word tokens — “already” and “not ready” must not match. Any other speech, noise, or silence counts as not heard. The Primary’s own prompt cannot trigger it, because listening opens only after speech ends. A quick POC now exists at <code>POC/g_voice/</code> (see §4 note below).</li>
+<li><b>Privacy, structurally:</b> audio lives in memory only, is sent only for this transcription, and is discarded with the transcript as soon as the step starts or times out — the same guarantee as camera photos (never stored, never logged, never in history). A persistent “Microphone is off except when you see Listening” indicator makes this visible.</li>
+<li><b>Multi-device sync:</b> the listen / heard / timeout decision is a session event broadcast by the session service, so every device shows Listening, then counting — or the return to the Start screen — at the same moment. Captures remain synchronised by the proven server-timestamp mechanism; voice only decides <i>when</i> the next capture schedule is issued.</li>
+<li><b>Framing interaction:</b> if framing is lost <i>while listening</i>, listening cancels, the Framing Warning speaks, and the voice prompt repeats once framing is restored. A half-heard “Ready” never starts a step.</li>
+</ul>
+
+<div class="note red"><b>Honesty flag — new assumption A10 (TO-PROVE).</b> The POC never called the transcription API: the POC report (<code>POC/POC_REPORT.md</code> §g) records only that a transcribe/ASR model exists in the Meta catalog, which is why browser TTS was chosen for speaking. Endpoint shape, streaming support, word-level latency, accuracy at 2–3 m from a laptop/phone mic, and cost per step are all <b>unproven</b>. <code>design.MD</code> must therefore specify: streaming or short-chunk transcription with a decision in ~1–2 s of the word being spoken (a single 10 s file upload after the window would make “Ready” feel broken), far-field accuracy evidence, and the return-to-Start-screen path as the designed behaviour whenever transcription is slow, unavailable, or wrong — re-entering by the Start click and asking by voice again, never a per-step tap.</div>
+
+<div class="note sage"><b>POC g result (2026-10-31, <code>POC/g_voice/</code>):</b> the same API key works with <code>muse-voice-transcribe-1.0</code>. Synthesized clips through the real server + API: “ready”, “I am ready” (heard as “Hi I’m ready”), and “let us start” all matched; “already”, “not ready”, and silence correctly did not. One-shot API time ~1.4–1.6 s after the clip ends, ~$0.00005 per attempt. Still unproven: human voice at 2–3 m and streaming latency — try it yourself: <code>python3 POC/g_voice/server.py 5174</code> → <code>http://localhost:5174/</code>.</div>
+
+<h3>Effect on the session state machine</h3>
+<p><code>CAPTURING</code> gains, per step: <code>INTRO → FRAMING_CHECK → VOICE_PROMPT → LISTENING (≤10 s) → COUNT×3</code>, with <code>LISTENING —timeout/error→ START_SCREEN —Start click→ (same step) INTRO</code> and <code>LISTENING —framing lost→ FRAMING_WARNING → VOICE_PROMPT</code>. The Start screen is the only click in the flow; Analysing and Results are unchanged. C15 touches C4 (the Start screen remains the session door, for first entry and for timeout re-entry alike), C5 (framing gates the prompt), and A2 (the prompt and the apology are Primary TTS lines).</p>
+</section>
+
+<section id="questions">
+<h2 class="display">5 &nbsp;Questions for you</h2>
+<p><b>Decided by you on 2026-10-31 (all recommended defaults):</b> the page above already assumes these. I still need your approval of §1–§3 with C15 added before I write <code>design.MD</code>.</p>
+<div class="qbox"><b>Q-A — Step 1: DECIDED.</b> Voice gate on <b>every</b> step including Step 1, after the Start click on the Start screen — you click Start, walk to the mat, then speak.</div>
+<div class="qbox"><b>Q-B — Wording: DECIDED, extended by you (2026-10-31).</b> Accepted: “ready”, “I’m ready”, and “let us start” (plus “let’s start / I am ready”), as whole words — “already” and “not ready” must not start a step. Other speech, noise, and the app’s own prompt do not count.</div>
+<div class="qbox"><b>Q-C — Timeout: CORRECTED by you (2026-10-31).</b> There is no per-step click. On timeout the app says sorry and goes back to the existing Start screen (demo / skip-demo, with the Start click). Clicking Start there returns to the same pending step and asks by voice again; the earlier “per-step Click-to-Start” answer is withdrawn.</div>
+<p>Still assumed, tell me if wrong: <b>Primary-only listening</b> (Secondaries have no microphone, matching “Secondary = camera only, no audio”).</p>
+</section>
+
+<footer>Design Phase gate review · C1–C15 dispositions, contradictions, stack, and the C15 voice spec · Awaiting owner approval — <code>design.MD</code> not yet written.</footer>
+</div>
+</body>
+</html>
+

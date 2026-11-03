@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chakrasana — Ghost Mirror · Variant B</title>
+<!--
+  VARIANT B — "GHOST MIRROR". Deliberately NOTHING like variants v1–v4.
+  Dropped: split screen, top strip, cards, filmstrip, bottom count bar.
+  Idea: comparison should need ZERO eye travel. The target pose is a ghost
+  laid over your own mirror image — you move until your body fills the ghost.
+  Everything else is peripheral: a breathing timer-dial (bottom corner),
+  steps as four dots (top), cameras as three small rings (right edge) that
+  are only status lights until one fails — then it takes the stage.
+  One look, one place, one question: "am I inside the shape?"
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --deep:#2F5D43; --amber:#E9C46A; --amber-ink:#3D2E05; --red:#FF6B4A;
+    --glass:rgba(14,26,18,.66); --line:rgba(255,255,255,.28);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{font-family:"Outfit",system-ui,-apple-system,sans-serif;background:#0F1D13;color:#fff;height:100dvh;overflow:hidden}
+  .display{font-family:"Fraunces",Georgia,serif;font-weight:600}
+  button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+
+  .stage{position:relative;height:100dvh;overflow:hidden;background:#223D2C}
+  .stage svg.scene{position:absolute;inset:0;width:100%;height:100%}
+  .flashfx{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:6}
+  .stage.go .flashfx{animation:fx .35s ease}
+  @keyframes fx{25%{opacity:.6}}
+  @media (prefers-reduced-motion:reduce){.stage.go .flashfx{animation:none}}
+
+  /* ——— the ghost: stored reference, laid over the mirror ——— */
+  .ghost{position:absolute;top:50%;left:50%;transform:translate(-50%,-54%);height:min(74dvh,760px);aspect-ratio:4/4.6;z-index:2;pointer-events:none}
+  .ghost .frame{position:absolute;inset:0;border-radius:46% 46% 42% 42%/38% 38% 34% 34%;border:3px dashed rgba(255,255,255,.75);background:rgba(255,255,255,.10);backdrop-filter:blur(1px)}
+  .ghost img{position:absolute;inset:14px;width:calc(100% - 28px);height:calc(100% - 28px);object-fit:cover;border-radius:44% 44% 40% 40%/36% 36% 32% 32%;opacity:.88;filter:saturate(.92)}
+  .ghost .gtag{position:absolute;left:50%;bottom:-16px;transform:translateX(-50%);white-space:nowrap;background:#fff;color:#2C4636;font-size:13px;font-weight:800;padding:8px 16px;border-radius:999px;box-shadow:0 10px 26px rgba(0,0,0,.35)}
+  .ghost .gtag em{font-style:normal;color:#C07A4A}
+  .alignhint{position:absolute;top:calc(50% - 46dvh);left:50%;transform:translateX(-50%);z-index:3;font-size:15px;font-weight:700;color:#EAF5EC;background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(6px);padding:9px 18px;border-radius:999px}
+  .alignhint b{color:#FFD9A8}
+
+  /* ——— top: name + four dots, floating, nothing else ——— */
+  .topname{position:absolute;top:20px;left:22px;z-index:5}
+  .topname h1{font-size:27px;line-height:1;text-shadow:0 4px 20px rgba(0,0,0,.5)}
+  .topname p{font-size:13px;font-weight:700;color:#CFE3D2;margin-top:5px;text-shadow:0 2px 12px rgba(0,0,0,.6)}
+  .dots-top{position:absolute;top:24px;left:50%;transform:translateX(-50%);z-index:5;display:flex;gap:10px;align-items:center;background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(6px);padding:9px 15px;border-radius:999px}
+  .dots-top i{width:11px;height:11px;border-radius:50%;border:2.5px solid #BFD8C4;display:block}
+  .dots-top i.done{background:#8FD0A4;border-color:#8FD0A4}
+  .dots-top i.now{background:#fff;border-color:#fff;box-shadow:0 0 0 5px rgba(255,255,255,.22)}
+  .dots-top span{font-size:12.5px;font-weight:800;letter-spacing:.06em;color:#E6F1E7;margin-left:3px}
+
+  /* ——— right edge: cameras as status rings, not pictures to study ——— */
+  .cams{position:absolute;right:20px;top:50%;transform:translateY(-50%);z-index:5;display:flex;flex-direction:column;gap:14px;align-items:center}
+  .cam{display:flex;flex-direction:column;align-items:center;gap:5px}
+  .cam .ring{width:72px;height:72px;border-radius:50%;padding:3px;background:conic-gradient(#8FD0A4 100%,#8FD0A4 0);position:relative}
+  .cam.bad .ring{background:conic-gradient(var(--amber) 100%,var(--amber) 0);animation:ringpulse 1.4s infinite}
+  @keyframes ringpulse{50%{box-shadow:0 0 0 9px rgba(233,196,106,.22)}}
+  @media (prefers-reduced-motion:reduce){.cam.bad .ring{animation:none}}
+  .cam .ring img,.cam .ring .sim{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;border:3px solid #12241A;background:#3C5A47}
+  .cam label{font-size:11px;font-weight:800;color:#EAF5EC;text-shadow:0 2px 8px rgba(0,0,0,.7);text-align:center;line-height:1.25}
+  .cam .st{font-size:10.5px;font-weight:700;color:#A9D9BC}
+  .cam.bad .st{color:var(--amber)}
+  .cam button{font-size:10.5px;font-weight:800;color:#fff;background:rgba(255,255,255,.14);border:1px solid var(--line);padding:5px 9px;border-radius:999px;backdrop-filter:blur(4px)}
+  .cam button.queued{background:var(--amber);color:var(--amber-ink);border-color:var(--amber)}
+
+  /* ——— bottom-left: timer dial replaces the giant numeral bar ——— */
+  .dialwrap{position:absolute;left:22px;bottom:20px;z-index:5;display:flex;align-items:center;gap:16px}
+  .dial{position:relative;width:118px;height:118px;flex:none}
+  .dial svg{transform:rotate(-90deg)}
+  .dial .track{stroke:rgba(255,255,255,.22)} .dial .prog{stroke:#fff;transition:stroke-dashoffset .5s ease}
+  .dial.warn .prog{stroke:var(--amber)}
+  .dial .c{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+  .dial .n{font-family:"Fraunces",Georgia,serif;font-size:49px;line-height:1;color:#fff;text-shadow:0 6px 24px rgba(0,0,0,.6)}
+  .dial .u{font-size:10px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#FFD9A8}
+  .dialside{max-width:300px}
+  .dialside .cap{font-size:13px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#FFD9A8;text-shadow:0 2px 12px rgba(0,0,0,.7)}
+  .dialside .sets{display:flex;gap:8px;margin-top:9px;align-items:center;font-size:13px;font-weight:700;color:#EAF5EC}
+  .dialside .sets i{width:12px;height:12px;border-radius:50%;border:2.5px solid #CFE6D4}
+  .dialside .sets i.full{background:#fff;border-color:#fff}
+  .dialside .sets i.held{border-color:var(--amber);background:rgba(233,196,106,.4)}
+  .dialside .privacy{margin-top:10px;font-size:12px;font-weight:600;color:#BCD2C0;line-height:1.45}
+  .dialside .privacy b{color:#EAF5EC}
+
+  /* spoken line: bottom centre, one sentence, like a subtitle */
+  .subtitle{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);z-index:5;max-width:min(620px,92vw);text-align:center;font-size:17px;font-weight:600;line-height:1.5;color:#F4F9F3;background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(7px);border-radius:999px;padding:11px 24px}
+  .subtitle b{color:#FFD9A8}
+
+  .endbtn{position:absolute;right:20px;bottom:20px;z-index:5;padding:12px 19px;border-radius:999px;background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(6px);font-weight:700;font-size:13.5px}
+  .replay{margin-top:11px;padding:9px 15px;border-radius:999px;background:rgba(255,255,255,.94);color:var(--deep);font-weight:800;font-size:12.5px}
+
+  /* warning: ghost steps aside, problem camera owns the mirror */
+  .banner{position:absolute;top:86px;left:50%;transform:translateX(-50%);z-index:7;width:min(700px,94vw);display:none;background:var(--amber);color:var(--amber-ink);border-radius:19px;padding:17px 23px;box-shadow:0 20px 48px rgba(0,0,0,.45);text-align:center}
+  .banner.show{display:block}
+  .banner h2{font-size:clamp(25px,4.4vh,35px);line-height:1.1}
+  .banner p{font-size:15.5px;font-weight:600;line-height:1.5;margin-top:5px}
+  body.warn .ghost,body.warn .alignhint{opacity:.14}
+  body.warn .subtitle{display:none}
+
+  /* reviewer furniture */
+  .review{position:absolute;left:22px;top:86px;z-index:9;display:flex;gap:4px;align-items:center;background:rgba(13,24,16,.9);border:1px solid var(--line);border-radius:999px;padding:3px}
+  .review span{font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#9FB4A4;padding:0 7px 0 10px}
+  .review button{padding:6px 13px;border-radius:999px;font-size:12.5px;font-weight:700;color:#C7D6C9}
+  .review button.on{background:#fff;color:var(--deep)}
+  .compare{position:absolute;right:20px;top:20px;z-index:9;font-size:12.5px;font-weight:700;color:#DCEBDE;background:rgba(13,24,16,.72);border:1px solid var(--line);padding:8px 14px;border-radius:999px;text-decoration:none;backdrop-filter:blur(5px)}
+
+  @media (max-width:900px){
+    .cams{right:12px}.cam .ring{width:56px;height:56px}
+    .dial{width:94px;height:94px}.dial .n{font-size:38px}
+    .dialside{display:none}
+    .ghost{height:62dvh}
+  }
+  @media (max-height:680px){ .ghost{height:64dvh} .subtitle{font-size:15px;bottom:14px} .dialwrap{bottom:12px} }
+</style>
+</head>
+<body>
+<main class="stage" id="stage">
+  <!-- simulated mirror (real front camera in product, mirrored) -->
+  <svg class="scene" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <rect width="1440" height="900" fill="#243E2E"/>
+    <rect y="672" width="1440" height="228" fill="#1D3325"/>
+    <rect x="330" y="650" width="780" height="36" rx="15" fill="#7FA38B" opacity=".4"/>
+    <ellipse cx="720" cy="420" rx="430" ry="360" fill="#FFFFFF" opacity=".05"/>
+    <g id="figure" stroke="#EFF7EE" stroke-width="15" stroke-linecap="round" fill="none">
+      <circle cx="712" cy="300" r="37" fill="#EFF7EE" stroke="none"/>
+      <path d="M712 344 C 676 470, 612 572, 508 676 M712 344 C 756 466, 822 566, 922 668"/>
+      <path d="M508 676 L430 786 M922 668 L1002 778 M586 502 L472 438 M842 498 L958 430"/>
+    </g>
+  </svg>
+  <div class="flashfx"></div>
+
+  <div class="topname"><h1 class="display">Chakrasana</h1><p>STEP 2 · WHEEL POSE</p></div>
+
+  <div class="dots-top" aria-label="Progress"><i class="done"></i><i class="now"></i><i></i><i></i><span>2 / 4</span></div>
+
+  <a class="compare" href="coaching-primary.html">Compare: Split View →</a>
+
+  <div class="review" aria-label="Prototype review state">
+    <span>Review</span>
+    <button class="on" id="tN" onclick="setWarn(false)">Coaching</button>
+    <button id="tW" onclick="setWarn(true)">Framing warning</button>
+  </div>
+
+  <div class="banner" id="banner" role="alert">
+    <h2 class="display">I can’t measure your pose</h2>
+    <p>Not fully in the <u>iPhone camera</u> — it has taken over the mirror. Move until your whole body fits, then hold still. Counting restarts itself.</p>
+  </div>
+
+  <p class="alignhint" id="alignHint">Move until your body <b>fills the ghost</b></p>
+
+  <div class="ghost" aria-label="Target pose, step 2">
+    <div class="frame"></div>
+    <img src="../POC/outputs/b/final/step2.png" alt="Stored target pose for Chakrasana step 2, shown as a ghost to fill">
+    <span class="gtag">Target · Step 2 <em>· stored image</em></span>
+  </div>
+
+  <aside class="cams" aria-label="Cameras">
+    <div class="cam"><div class="ring"><div class="sim"></div></div><label>You<br><span class="st">✓ In view</span></label></div>
+    <div class="cam" id="camIphone"><div class="ring"><div class="sim" style="background:#435C4B"></div></div><label>iPhone<br><span class="st" id="iphoneSt">✓ In view</span></label><button onclick="queueSwitch(this)">Make Primary</button></div>
+    <div class="cam"><div class="ring"><div class="sim" style="background:#4A6352"></div></div><label>Laptop 2<br><span class="st">✓ In view</span></label><button onclick="queueSwitch(this)">Make Primary</button></div>
+  </aside>
+
+  <div class="dialwrap">
+    <div class="dial" id="dial">
+      <svg width="118" height="118" viewBox="0 0 118 118">
+        <circle class="track" cx="59" cy="59" r="52" fill="none" stroke-width="7"/>
+        <circle class="prog" id="prog" cx="59" cy="59" r="52" fill="none" stroke-width="7" stroke-linecap="round" stroke-dasharray="326.7" stroke-dashoffset="110"/>
+      </svg>
+      <div class="c"><div><div class="n" id="num">2</div><div class="u" id="dialUnit">Get ready</div></div></div>
+    </div>
+    <div class="dialside">
+      <div class="cap" id="capTxt">Capture 1 of 3</div>
+      <div class="sets"><i class="full"></i><i id="d2"></i><i></i><span>Holds 3 seconds</span></div>
+      <p class="privacy">Photos are checked, <b>never stored</b>.<br><button class="replay" onclick="playCount()">▶ Replay count</button></p>
+    </div>
+  </div>
+
+  <p class="subtitle" id="subtitle"><b>Step 2.</b> Palms flat beside your ears, fingers toward your shoulders.</p>
+
+  <button class="endbtn">End session</button>
+</main>
+
+<script>
+  var timer=null;
+  function queueSwitch(b){ b.textContent='After this step ✓'; b.classList.add('queued'); b.disabled=true; }
+  function setWarn(w){
+    document.body.classList.toggle('warn', w);
+    document.getElementById('tN').classList.toggle('on', !w);
+    document.getElementById('tW').classList.toggle('on', w);
+    document.getElementById('banner').classList.toggle('show', w);
+    document.getElementById('dial').classList.toggle('warn', w);
+    if(w){
+      document.getElementById('camIphone').classList.add('bad');
+      document.getElementById('iphoneSt').textContent='⚠ Out of frame';
+      document.getElementById('figure').setAttribute('transform','translate(340,46)');
+      document.getElementById('num').textContent='—';
+      document.getElementById('dialUnit').textContent='Paused';
+      document.getElementById('capTxt').textContent='Paused · no photo taken';
+      document.getElementById('d2').classList.add('held');
+      document.getElementById('prog').style.strokeDashoffset='326.7';
+      clearInterval(timer);
+    } else {
+      document.getElementById('camIphone').classList.remove('bad');
+      document.getElementById('iphoneSt').textContent='✓ In view';
+      document.getElementById('figure').removeAttribute('transform');
+      document.getElementById('capTxt').textContent='Capture 1 of 3';
+      document.getElementById('d2').classList.remove('held');
+      playCount();
+    }
+  }
+  function playCount(){
+    if(document.body.classList.contains('warn')) return;
+    var el=document.getElementById('num'), n=3;
+    document.getElementById('dialUnit').textContent='Get ready';
+    document.getElementById('capTxt').textContent='Capture 1 of 3';
+    el.textContent=n;
+    document.getElementById('prog').style.strokeDashoffset='218';
+    clearInterval(timer);
+    timer=setInterval(function(){
+      n--;
+      document.getElementById('prog').style.strokeDashoffset = n===2 ? '145' : (n===1 ? '60' : '0');
+      if(n<1){
+        clearInterval(timer); el.textContent='•'; document.getElementById('dialUnit').textContent='Taken';
+        var st=document.getElementById('stage'); st.classList.remove('go'); void st.offsetWidth; st.classList.add('go');
+        setTimeout(function(){
+          document.getElementById('dialUnit').textContent='Hold…';
+          document.getElementById('capTxt').textContent='Capture 2 of 3';
+          document.getElementById('d2').classList.add('full');
+          document.getElementById('prog').style.strokeDashoffset='218';
+        },430);
+        return;
+      }
+      el.textContent=n;
+    },900);
+  }
+  playCount();
+</script>
+</body>
+</html>

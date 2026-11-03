@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: muse_yoga
+      POSTGRES_USER: muse
+      POSTGRES_PASSWORD: muse-local-only
+    volumes:
+      - ./data/db:/var/lib/postgresql/data
+    networks: [internal]
+  redis:
+    image: redis:7-alpine
+    networks: [internal]
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
+    networks: [internal]
+networks:
+  internal:
+    internal: true

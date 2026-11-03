@@ -1,0 +1,22 @@
+{
+  "name": "muse-yoga",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "npm run build -w @muse/web",
+    "start": "node --import tsx apps/server/src/index.ts",
+    "test": "node --import tsx --test tests/*.test.ts apps/server/src/*.test.ts packages/domain/src/*.test.ts",
+    "typecheck": "npm run typecheck -w @muse/domain && npm run typecheck -w @muse/contracts && npm run typecheck -w @muse/server && npm run typecheck -w @muse/web",
+    "postinstall": "node scripts/setup-mediapipe.mjs",
+    "setup:pose": "node scripts/setup-mediapipe.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

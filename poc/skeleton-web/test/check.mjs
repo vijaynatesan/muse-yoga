@@ -1,0 +1,16 @@
+import { chromium } from "playwright-core";
+const base = "http://localhost:5180/two.html?room=chk&delegate=CPU&auto=1";
+const b = await chromium.launch({ executablePath: process.env.CHROME });
+const mk = async (q) => { const p = await (await b.newContext()).newPage(); p.errs = []; p.on("pageerror", e => p.errs.push(String(e))); await p.goto(base + q); return p; };
+const viewer = await mk("&x=1"), A = await mk("&role=front&video=test/pose.webm"), B = await mk("&role=side&video=test/poseB.webm");
+await viewer.waitForFunction(() => window.__two.recv.front > 15 && window.__two.recv.side > 15, null, { timeout: 60000 });
+if (process.env.INSTR) await viewer.fill("#instr", process.env.INSTR);
+await viewer.click("#chk");
+await viewer.waitForFunction(() => window.__two.result, null, { timeout: 90000 });
+console.log("viewer result:", JSON.stringify(await viewer.evaluate(() => window.__two.result)));
+console.log("captured status A/B:", await A.evaluate(() => window.__two.captured), await B.evaluate(() => window.__two.captured));
+console.log("state:", await viewer.locator("#chk-state").textContent());
+console.log("verdict text:", (await viewer.locator("#chk-out").innerText()).slice(0, 400).replace(/\n/g, " | "));
+console.log("errors:", A.errs, B.errs, viewer.errs);
+await viewer.screenshot({ path: "test/check.png", fullPage: true });
+await b.close();

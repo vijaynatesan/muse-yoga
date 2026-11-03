@@ -1,0 +1,12 @@
+{
+  "maxFeedbacksPerAsana": 3,
+  "regOtpLifetimeLimit": 3,
+  "loginFailLimit": 3,
+  "loginLockHours": 6,
+  "maxDevicesPerUser": 3,
+  "otpExpiryMinutes": 10,
+  "voiceWindowSeconds": 10,
+  "sessionMaxDevices": 3,
+  "minSteps": 2,
+  "maxSteps": 12
+}

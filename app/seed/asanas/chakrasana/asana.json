@@ -1,0 +1,40 @@
+{
+  "asana": "Chakrasana",
+  "steps": [
+    {
+      "step": 1,
+      "instruction": "Lie on your back with knees bent and feet flat on the floor, hip-width apart. Rest your arms beside your body and breathe deeply.",
+      "duration_seconds": 20
+    },
+    {
+      "step": 2,
+      "instruction": "Bend your elbows and place your palms flat beside your ears, fingers pointing toward your shoulders. Keep your feet parallel and knees aligned over your ankles.",
+      "duration_seconds": 15
+    },
+    {
+      "step": 3,
+      "instruction": "Press into your feet and lift your hips into Bridge Pose. Then press firmly into your hands to lift your head and chest off the floor.",
+      "duration_seconds": 15
+    },
+    {
+      "step": 4,
+      "instruction": "Straighten your arms and legs as comfortable to arch into Wheel Pose, lifting your chest upward. Hold the pose while breathing steadily and gaze between your hands.",
+      "duration_seconds": 30
+    }
+  ],
+  "difficulty": "Advanced",
+  "body_part": "Back and Spine",
+  "category": "Backbend",
+  "benefits": [
+    "Strengthens arms, wrists, legs, and spine",
+    "Stretches chest, lungs, abdomen, and hip flexors",
+    "Increases spinal flexibility and energy"
+  ],
+  "contraindications": [
+    "Back or neck injury",
+    "Wrist injury or carpal tunnel syndrome",
+    "High or low blood pressure",
+    "Heart conditions",
+    "Pregnancy"
+  ]
+}

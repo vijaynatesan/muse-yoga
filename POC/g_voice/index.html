@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Muse Yoga — Voice “Ready” POC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#EAF0E9;--surface:#fff;--soft:#F2F6F0;--ink:#223129;--ink2:#3E5744;--line:#D8E2D4;--deep:#2F5D43;--amber:#6E5205;--amberbg:#FBF0D2;--red:#B23B2C;--redbg:#FBEAE6}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Outfit",system-ui,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55}
+.display{font-family:"Fraunces",Georgia,serif}
+.wrap{max-width:860px;margin:0 auto;padding:26px 20px 56px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:0 10px 28px rgba(46,74,56,.09);padding:26px 30px;margin-bottom:16px}
+h1{font-size:30px;color:var(--deep)} h2{font-size:21px;color:var(--deep);margin-bottom:8px}
+p,li{color:var(--ink2)} .btn{display:inline-flex;padding:12px 22px;border-radius:999px;font-weight:700;background:var(--deep);color:#fff;border:none;cursor:pointer;font:inherit}
+.btn.ghost{background:#fff;color:var(--deep);border:1.5px solid var(--deep)} .btn:disabled{opacity:.45;cursor:not-allowed}
+.chip{display:inline-block;padding:5px 12px;border-radius:999px;background:#DCE8D8;font-size:12.5px;font-weight:800;color:#2F4A37}
+.big{font-size:clamp(44px,9vh,72px);line-height:1;color:var(--deep);text-align:center;padding:10px 0}
+.bar{height:12px;background:#E4EDE2;border-radius:99px;overflow:hidden;margin:10px 0}.bar i{display:block;height:100%;background:var(--deep);width:100%}
+.note{border-radius:13px;padding:13px 16px;margin:12px 0;font-size:14.5px}
+.note.amber{background:var(--amberbg);color:var(--amber)} .note.red{background:var(--redbg);color:var(--red)} .note.sage{background:#E7F0E7;color:var(--deep)}
+table{width:100%;border-collapse:collapse;font-size:13.5px} td,th{padding:8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+input[type=text]{width:100%;padding:11px 14px;border:1.5px solid var(--line);border-radius:11px;font:inherit;background:var(--soft)}
+.meter{height:10px;background:#E4EDE2;border-radius:99px;overflow:hidden}.meter i{display:block;height:100%;background:#7FA38B;width:0}
+code{background:var(--soft);padding:1px 7px;border-radius:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="card">
+<div class="display" style="font-size:20px;color:var(--deep)">Muse Yoga · POC g</div>
+<h1 class="display">Voice “Ready” check</h1>
+<p>Quick check of Muse Voice Transcribe (<code>muse-voice-transcribe-1.0</code>, same API key, server-side only). One click — <b>Start</b> below, like the Start screen. After that, voice only: the app says <i>“Say Ready when you are in position,”</i> listens for up to <b>10 seconds</b>, then counts if it hears an accepted phrase. Accepted: <b>ready · I’m ready · let us start</b> (plus “let’s start / I am ready”). Audio is never stored.</p>
+<p style="margin-top:10px"><span class="chip" id="health">checking server…</span></p>
+</div>
+
+<div class="card" id="startCard">
+<h2 class="display">Start screen (the only click)</h2>
+<p>Demo / skip-demo lives here in the real app. In this POC, Start goes straight into a test step.</p>
+<div class="big display" id="stage">Step 2 of 4</div>
+<p style="text-align:center">Palms flat beside your ears, fingers toward shoulders.</p>
+<div style="text-align:center;margin-top:14px"><button class="btn" id="startBtn">▶ &nbsp;Start — then say “Ready”</button></div>
+<div class="note amber" id="startMsg" style="display:none"></div>
+</div>
+
+<div class="card" id="listenCard" style="display:none">
+<h2 class="display" id="listenTitle">Listening…</h2>
+<div class="big display" id="count">10</div>
+<div class="bar"><i id="bar"></i></div>
+<div class="meter"><i id="level"></i></div>
+<p id="listenHint" style="text-align:center;margin-top:10px">Say <b>“Ready”</b>, <b>“I’m ready”</b>, or <b>“Let us start”</b>. Listening stops the moment you finish speaking, or at 10 s.</p>
+</div>
+
+<div class="card">
+<h2 class="display">Attempts</h2>
+<table><thead><tr><th>#</th><th>Heard (transcript)</th><th>Phrase</th><th>Verdict</th><th>Audio</th><th>API</th></tr></thead><tbody id="log"><tr><td colspan="6">No attempts yet. Press Start and speak.</td></tr></tbody></table>
+</div>
+
+<div class="card">
+<h2 class="display">Phrase matcher (no microphone)</h2>
+<p>Type anything to check the matcher alone — try <i>already</i>, <i>not ready</i>, <i>let us start now</i>.</p>
+<div style="display:flex;gap:9px;margin-top:10px"><input type="text" id="phraseIn" value="let us start"><button class="btn ghost" id="matchBtn">Test</button></div>
+<div class="note sage" id="matchOut">—</div>
+<p style="font-size:13.5px">How it works: this page records microphone PCM, builds a 16 kHz WAV in the browser, and uploads it only when you stop speaking (or at 10 s). The POC server forwards it in memory to <code>POST /v1/asr/transcribe</code> — nothing is written to disk. Streaming (<code>wss://…/asr/realtime</code>) is the production candidate; this POC proves phrases, accuracy, and latency first.</p>
+</div>
+</div>
+<script>
+var AC=null,stream=null,proc=null,chunks=[],sr=16000,listening=false,speechSeen=false,silenceMs=0,deadline=0,attempt=0;
+function speak(t,cb){try{var u=new SpeechSynthesisUtterance(t);u.onend=function(){if(cb)cb()};speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){if(cb)cb()}}
+function downsample(buf,inRate){var ratio=inRate/16000,len=Math.round(buf.length/ratio),out=new Float32Array(len);for(var i=0;i<len;i++)out[i]=buf[Math.round(i*ratio)];return out}
+function wavEncode(samples){var b=new ArrayBuffer(44+samples.length*2),v=new DataView(b);function s(o,x){for(var i=0;i<x.length;i++)v.setUint8(o+i,x.charCodeAt(i))}s(0,'RIFF');v.setUint32(4,36+samples.length*2,true);s(8,'WAVEfmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,16000,true);v.setUint32(28,32000,true);v.setUint16(32,2,true);v.setUint16(34,16,true);s(36,'data');v.setUint32(40,samples.length*2,true);for(var i=0;i<samples.length;i++){var x=Math.max(-1,Math.min(1,samples[i]));v.setInt16(44+i*2,x<0?x*32768:x*32767,true)}return new Blob([b],{type:'audio/wav'})}
+async function startTest(){
+ document.getElementById('startMsg').style.display='none';
+ speak('Step 2. Palms flat beside your ears. Say Ready when you are in position.', beginListen);
+}
+async function beginListen(){
+ document.getElementById('startCard').style.display='none';
+ document.getElementById('listenCard').style.display='block';
+ try{ stream=await navigator.mediaDevices.getUserMedia({audio:true}); }
+ catch(e){ heardNothing('Microphone blocked — check the browser permission, then use Start.'); return; }
+ AC=new (window.AudioContext||window.webkitAudioContext)();
+ var src=AC.createMediaStreamSource(stream);
+ var an=AC.createAnalyser(); an.fftSize=512; src.connect(an);
+ proc=AC.createScriptProcessor(4096,1,1); chunks=[]; listening=true; speechSeen=false; silenceMs=0; deadline=Date.now()+10000;
+ var inRate=AC.sampleRate, td=new Uint8Array(an.fftSize);
+ proc.onaudioprocess=function(ev){
+   if(!listening) return;
+   var d=ev.inputBuffer.getChannelData(0); chunks.push(downsample(new Float32Array(d), inRate));
+   an.getByteTimeDomainData(td); var rms=0; for(var i=0;i<td.length;i++){var x=(td[i]-128)/128; rms+=x*x} rms=Math.sqrt(rms/td.length);
+   document.getElementById('level').style.width=Math.min(100,Math.round(rms*350))+'%';
+   if(rms>0.025) speechSeen=true;
+   if(speechSeen){ if(rms<0.02){ silenceMs+=4096/inRate*1000; if(silenceMs>1100) stopListen(); } else silenceMs=0; }
+   var left=Math.max(0,deadline-Date.now()); document.getElementById('count').textContent=Math.ceil(left/1000);
+   document.getElementById('bar').style.width=(left/100)+' %'; document.getElementById('bar').style.width=(left/100)+'%';
+   if(left<=0) stopListen();
+ };
+ src.connect(proc); proc.connect(AC.destination);
+}
+function stopListen(){
+ if(!listening) return; listening=false;
+ try{proc.disconnect(); AC.close(); stream.getTracks().forEach(function(t){t.stop()})}catch(e){}
+ var total=chunks.reduce(function(a,c){return a+c.length},0), all=new Float32Array(total), o=0;
+ chunks.forEach(function(c){all.set(c,o); o+=c.length});
+ upload(wavEncode(all));
+}
+async function upload(wav){
+ document.getElementById('listenTitle').textContent='Checking…';
+ var fd=new FormData(); fd.append('audio', wav, 'ready.wav');
+ attempt++;
+ try{
+  var r=await fetch('/api/transcribe',{method:'POST',body:fd}); var d=await r.json();
+  if(!r.ok) throw new Error(d.error||r.status);
+  logAttempt(d);
+  if(d.matched){ heardReady(d); } else { heardNothing('Sorry, I didn\u2019t hear you say Ready. Click Start when you want to start.'); }
+ }catch(e){ logError(e.message); heardNothing('Sorry, I didn\u2019t hear you say Ready. Click Start when you want to start.'); }
+}
+function heardReady(d){
+ document.getElementById('listenCard').style.display='none';
+ document.getElementById('startCard').style.display='block';
+ document.getElementById('stage').textContent='1 · 2 · 3 — photo!';
+ var m=document.getElementById('startMsg'); m.style.display='block'; m.className='note sage';
+ m.innerHTML='<b>Heard “'+d.transcript+'”</b> (phrase: '+d.phrase+'). In the real app counting and capture start now.';
+ speak('Get ready. 1. 2. 3.');
+}
+function heardNothing(msg){
+ try{speechSynthesis.cancel()}catch(e){}
+ document.getElementById('listenCard').style.display='none';
+ document.getElementById('startCard').style.display='block';
+ document.getElementById('stage').textContent='Step 2 of 4';
+ var m=document.getElementById('startMsg'); m.style.display='block'; m.className='note red'; m.textContent=msg+' You are back on the Start screen — the only click in the flow.';
+ speak('Sorry, I didn\u2019t hear you say Ready. Click Start when you want to start.');
+}
+function logAttempt(d){
+ var tb=document.getElementById('log'); if(tb.querySelector('td[colspan]')) tb.innerHTML='';
+ var tr=document.createElement('tr');
+ tr.innerHTML='<td>'+attempt+'</td><td>'+(d.transcript||'(silence)')+'</td><td>'+(d.phrase||'—')+'</td><td><b>'+(d.matched?'✓ START':'✕ back to Start')+'</b></td><td>'+d.audio_seconds+'s</td><td>'+d.api_seconds+'s</td>';
+ tb.prepend(tr);
+}
+function logError(msg){
+ var tb=document.getElementById('log'); if(tb.querySelector('td[colspan]')) tb.innerHTML='';
+ var tr=document.createElement('tr'); tr.innerHTML='<td>'+attempt+'</td><td colspan="5">'+msg+'</td>'; tb.prepend(tr);
+}
+document.getElementById('startBtn').onclick=startTest;
+document.getElementById('matchBtn').onclick=async function(){
+ var t=document.getElementById('phraseIn').value;
+ var r=await fetch('/api/match',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:t})});
+ var d=await r.json();
+ document.getElementById('matchOut').innerHTML=d.matched?('<b>✓ Accepted</b> — phrase: '+d.phrase+' · tokens: '+d.tokens.join(' ')):('<b>✕ Not accepted</b> · tokens: '+d.tokens.join(' '));
+};
+fetch('/api/health').then(function(r){return r.json()}).then(function(d){
+ document.getElementById('health').textContent=d.key_present?('server ready · '+d.model):'server up · NO API KEY FOUND';
+}).catch(function(){ document.getElementById('health').textContent='server not reachable — start POC/g_voice/server.py'; });
+</script>
+</body>
+</html>
