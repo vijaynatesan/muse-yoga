@@ -11,7 +11,7 @@ recorded by default, and frames are processed in memory only.
 ## Run it
 
 ```bash
-cd poc/skeleton-py
+cd POC/skeleton-py
 source .venv/bin/activate
 
 # Still photo -> skeleton.png (skeleton only, on white)
@@ -53,6 +53,6 @@ uv venv && uv pip install tensorflow tensorflow-hub opencv-python-headless numpy
   limbs drop out, raise it if the skeleton jitters.
 - MoveNet *Thunder* (256×256) is more accurate but slower; Lightning is
   the right default for realtime.
-- This replaces the two earlier browser experiments in `poc/skeleton/`
+- This replaces the two earlier browser experiments in `POC/skeleton/`
   (MediaPipe — needs WebGL, which this sandbox lacks) and
-  `poc/skeleton-fusion/` (two-camera merge — dropped by request).
+  `POC/skeleton-fusion/` (two-camera merge — dropped by request).

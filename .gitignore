@@ -52,17 +52,17 @@ venv/
 .uvcache/
 
 # ---------- Proof-of-concept folders: keep source, drop heavy copies and media ----------
-poc/**/vendor/
-poc/**/models/
-poc/**/node_modules/
-poc/**/certs/
-poc/**/test/*.y4m
-poc/**/test/*.webm
-poc/**/test/*.mp4
-poc/**/test/*.jpg
-poc/**/test/*.png
-poc/skeleton-py/*.mp4
-poc/skeleton-py/*.png
+POC/**/vendor/
+POC/**/models/
+POC/**/node_modules/
+POC/**/certs/
+POC/**/test/*.y4m
+POC/**/test/*.webm
+POC/**/test/*.mp4
+POC/**/test/*.jpg
+POC/**/test/*.png
+POC/skeleton-py/*.mp4
+POC/skeleton-py/*.png
 *.mp4
 *.y4m
 *.webm

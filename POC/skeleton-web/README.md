@@ -3,7 +3,7 @@
 BlazePose (MediaPipe Pose Landmarker, lite) runs on-device in the page. The camera <video>
 is hidden; only a skeleton on a white canvas is drawn. Nothing is recorded or uploaded.
 
-Run (WSL):   cd poc/skeleton-web && python3 -m http.server 5180
+Run (WSL):   cd POC/skeleton-web && python3 -m http.server 5180
 Open (Windows browser):  http://localhost:5180/index.html   -> "Start camera"
 
 Files: pose.js (source-agnostic pose + angles + framing), index.html (UI), vendor/ + models/ (local, offline).

@@ -17,3 +17,13 @@ POC/.venv/bin/python POC/e_primary_session/server.py 8765         # e/g primary 
 API key is read from workspace `.api.txt` (never copied into POC) or `META_API_KEY`. Base: `https://api.meta.ai/v1`, models `muse-wonder-1.0` / `muse-image-1.0`.
 
 Multi-device (scope 18e full) is NOT in this phase: it needs this web app served so other devices can connect remotely (HTTPS/LAN + realtime sync) — next phase after owner review.
+
+## Skeleton-view experiments
+
+On-device pose detection that shows a skeleton on a white background instead of the camera picture. The production version lives in `app/apps/web/src/skeleton.ts`.
+
+| Folder | What it is |
+|---|---|
+| `skeleton-web/` | **Final browser version** (MediaPipe Pose Landmarker, one camera and a two-camera relay). `README.md` has the run steps; `node_modules`, `vendor/`, `models/` and test videos are git-ignored and must be fetched locally. |
+| `skeleton-py/` | Python/OpenCV variant that renders a skeleton from a video file. |
+| `skeleton/`, `skeleton-fusion/` | Earlier browser experiments (single camera; two-camera merge, dropped). |

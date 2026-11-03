@@ -102,7 +102,7 @@ app/
   config/           limits and admin list examples
   scripts/          dev launcher, pose-model setup, mkcert notes, PDF parser worker
   tests/            behavioural tests
-POC/ poc/           original proof-of-concept experiments (kept for reference)
+POC/               proof-of-concept experiments (kept for reference): API, voice, multi-device, and the skeleton view
 prototype/          the clickable UI prototype the screens were built from
 design.html, scope.MD, uidesign.MD ...   product scope and design documents
 ```

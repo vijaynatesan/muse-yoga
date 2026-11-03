@@ -1,4 +1,4 @@
-// On-device pose → skeleton view (ported from poc/skeleton-web pose.js + draw.js).
+// On-device pose → skeleton view (ported from POC/skeleton-web pose.js + draw.js).
 // MediaPipe BlazePose (lite) runs in the browser; the camera video is never shown and nothing leaves the device.
 import { FilesetResolver, PoseLandmarker } from "@mediapipe/tasks-vision";
 
