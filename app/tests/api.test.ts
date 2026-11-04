@@ -182,7 +182,7 @@ test("listening window starts after the prompt, not during it (S8.5)", { timeout
   assert.ok(seen.spoken.length > 0, "prompt was spoken before listening");
   assert.deepEqual(seen.phases, ["listen"], "exactly one listen window, started by promptDone");
 });
-test("step timeline: 1-2-3 at 2 s gaps, ONE photo on the 3 (no hold), then asks Ready for next step", { timeout: 60000 }, async () => {
+test("step timeline: 1-2-3 at 2 s gaps, ONE photo on the 3 (no hold), then starts the next step by itself (no Ready)", { timeout: 60000 }, async () => {
   const sess = await req("/api/sessions", { method: "POST", body: JSON.stringify({ asanaId: "asana-tadasana" }) });
   const { default: WebSocket } = await import("ws");
   const seen = await new Promise<any>((resolve, reject) => {
@@ -195,11 +195,12 @@ test("step timeline: 1-2-3 at 2 s gaps, ONE photo on the 3 (no hold), then asks 
       if (msg.type === "state" && msg.state === "setup") ws.send(JSON.stringify({ type: "readyClicked" }));
       if (msg.type === "voiceWindow" && msg.open && msg.phase === "prompt") setTimeout(() => ws.send(JSON.stringify({ type: "promptDone" })), 200);
       if (msg.type === "voiceWindow" && msg.open && msg.phase === "listen" && !counts.length) ws.send(JSON.stringify({ type: "voiceText", text: "ready" }));
+      if (msg.type === "voiceWindow" && msg.open && msg.phase === "autoprompt") setTimeout(() => ws.send(JSON.stringify({ type: "promptDone" })), 200);
       if (msg.type === "count") counts.push([msg.value, Date.now()]);
       if (msg.type === "captureAt") sets.push(msg.set);
       if (msg.type === "hold" && !msg.done) holdAt = Date.now();
       if (msg.type === "spoken") spoken.push(msg.text);
-      if (msg.type === "voiceWindow" && msg.open && msg.phase === "prompt" && counts.length === 3) { clearTimeout(to); ws.close(); resolve({ counts, holdAt, spoken, sets, promptAt: Date.now() }); }
+      if (msg.type === "voiceWindow" && msg.open && msg.phase === "autoprompt" && counts.length === 3) { clearTimeout(to); ws.close(); resolve({ counts, holdAt, spoken, sets, promptAt: Date.now() }); }
     });
     ws.on("error", (e: any) => { clearTimeout(to); reject(e); });
   });
@@ -209,7 +210,31 @@ test("step timeline: 1-2-3 at 2 s gaps, ONE photo on the 3 (no hold), then asks 
   assert.equal(seen.holdAt, 0, "no multi-second hold any more");
   assert.ok(!seen.spoken.some((t: string) => /stay in that pose/i.test(t)));
   assert.ok(seen.promptAt - seen.counts[2][1] < 5000, "moves on within a few seconds of the photo");
-  assert.ok(seen.spoken.some((t: string) => /Step 2\..*Say Ready/i.test(t)), "asks Ready for step 2");
+  assert.ok(seen.spoken.some((t: string) => /Step 2\./i.test(t)), "reads step 2 aloud");
+  assert.ok(!seen.spoken.some((t: string) => /Step 2\..*Say Ready/i.test(t)), "no Ready needed after step 1");
+});
+test("skeleton keypoints from a Secondary reach the Primary only; bad frames are dropped", { timeout: 30000 }, async () => {
+  const sess = await req("/api/sessions", { method: "POST", body: JSON.stringify({ asanaId: "asana-tadasana" }) });
+  const { default: WebSocket } = await import("ws");
+  const open = (label: string) => new Promise<any>((resolve, reject) => {
+    const ws = new WebSocket(`ws://127.0.0.1:${PORT}/ws`, { headers: { Cookie: cookie, Origin: `http://127.0.0.1:${PORT}` } });
+    const got: any[] = []; ws.on("message", (d: Buffer) => got.push(JSON.parse(d.toString())));
+    ws.on("open", () => { ws.send(JSON.stringify({ type: "join", code: sess.body.code, label })); setTimeout(() => resolve({ ws, got }), 600); });
+    ws.on("error", reject);
+  });
+  const prim = await open("Laptop"); const sec = await open("Phone");
+  const good = Array.from({ length: 33 }, (_, i) => [i / 40, i / 50, 0.9]);
+  sec.ws.send(JSON.stringify({ type: "skelFrame", w: 480, h: 640, pts: good }));
+  await new Promise((r) => setTimeout(r, 300));
+  sec.ws.send(JSON.stringify({ type: "skelFrame", w: 480, h: 640, pts: good.slice(0, 5) }));        // wrong length: dropped
+  await new Promise((r) => setTimeout(r, 300));
+  prim.ws.send(JSON.stringify({ type: "skelFrame", w: 480, h: 640, pts: good }));                  // Primary never relays to itself/others
+  await new Promise((r) => setTimeout(r, 300));
+  const skel = prim.got.filter((m: any) => m.type === "skel");
+  prim.ws.close(); sec.ws.close();
+  assert.equal(skel.length, 1, "exactly the one valid Secondary frame reached the Primary");
+  assert.equal(skel[0].label, "Phone"); assert.equal(skel[0].pts.length, 33);
+  assert.equal(sec.got.filter((m: any) => m.type === "skel").length, 0, "Secondary receives no skeleton frames");
 });
 test("favourites list delete with empty body (QA D2 regression, S2.4)", async () => {
   const created = await req("/api/favourites", { method: "POST", body: JSON.stringify({ name: "ToDelete" }) });

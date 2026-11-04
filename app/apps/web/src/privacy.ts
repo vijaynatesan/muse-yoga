@@ -8,6 +8,24 @@ export interface PrivacyEngine { blur(src: CanvasImageSource & { width?: number;
 
 const HEAD = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
+// Canvas `filter` (used for blur) is NOT supported by Safari/iOS: there drawing with "blur()" silently draws a SHARP image.
+// So blur through a down-scale + smooth up-scale instead whenever `filter` is missing.
+const FILTER_OK = typeof CanvasRenderingContext2D !== "undefined" && "filter" in CanvasRenderingContext2D.prototype;
+function blurDraw(o: CanvasRenderingContext2D, A: HTMLCanvasElement, w: number, h: number, px: number) {
+  if (FILTER_OK) { o.filter = `blur(${px}px)`; o.drawImage(A, 0, 0); o.filter = "none"; return; }
+  const f = Math.max(3, Math.round(px / 1.2)), sw = Math.max(2, Math.round(w / f)), sh = Math.max(2, Math.round(h / f));
+  const t = document.createElement("canvas"); t.width = sw; t.height = sh; const tc = t.getContext("2d")!;
+  tc.imageSmoothingEnabled = true; tc.imageSmoothingQuality = "high"; tc.drawImage(A, 0, 0, sw, sh);
+  o.imageSmoothingEnabled = true; o.imageSmoothingQuality = "high"; o.drawImage(t, 0, 0, sw, sh, 0, 0, w, h);
+}
+/** Dependency-free fallback: the WHOLE picture heavily blurred (used if the on-device person/face model cannot run). */
+export function fullBlurDataUrl(src: CanvasImageSource, w = 640, h = 480): string {
+  const A = document.createElement("canvas"); A.width = w; A.height = h; A.getContext("2d")!.drawImage(src, 0, 0, w, h);
+  const out = document.createElement("canvas"); out.width = w; out.height = h;
+  blurDraw(out.getContext("2d")!, A, w, h, 30);
+  return out.toDataURL("image/jpeg", 0.82);
+}
+
 export async function createPrivacyEngine(): Promise<PrivacyEngine> {
   const fileset = await FilesetResolver.forVisionTasks("/mediapipe/wasm");
   const make = (d: "GPU" | "CPU") => PoseLandmarker.createFromOptions(fileset, {
@@ -21,7 +39,7 @@ export async function createPrivacyEngine(): Promise<PrivacyEngine> {
     blur(src, w = 640, h = 480) {
       const A = mk(w, h), actx = A.getContext("2d")!; actx.drawImage(src as CanvasImageSource, 0, 0, w, h);
       const out = mk(w, h), o = out.getContext("2d")!;
-      const wholeBlur = () => { o.filter = "blur(24px)"; o.drawImage(A, 0, 0); o.filter = "none"; };
+      const wholeBlur = () => blurDraw(o, A, w, h, 28);
       let res: any = null;
       try {
         res = lm.detect(A);
@@ -32,7 +50,7 @@ export async function createPrivacyEngine(): Promise<PrivacyEngine> {
           if (face.length < 3) { wholeBlur(); }                                  // face not located -> cannot guarantee it is hidden
           else {
             // 1) blurred background everywhere
-            o.filter = "blur(18px)"; o.drawImage(A, 0, 0); o.filter = "none";
+            blurDraw(o, A, w, h, 18);
             // 2) sharp person on top, using the segmentation mask as soft alpha
             const m: Float32Array = mask.getAsFloat32Array(), mw: number = mask.width, mh: number = mask.height;
             const img = actx.getImageData(0, 0, w, h), d = img.data;

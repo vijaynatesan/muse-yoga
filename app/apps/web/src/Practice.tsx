@@ -1,5 +1,5 @@
 import { createPose, drawSkeleton, type PoseEngine } from "./skeleton";
-import { createPrivacyEngine, type PrivacyEngine } from "./privacy";
+import { createPrivacyEngine, fullBlurDataUrl, type PrivacyEngine } from "./privacy";
 import { MarkedImage } from "./MarkedImage.js";
 import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
@@ -7,6 +7,30 @@ import { api } from "./api";
 // Practice flow (design §4.4): SETUP -> DISCLAIMER -> DEMO -> START -> per-step
 // VOICE -> LISTENING -> COUNT x3 -> ANALYSING -> RESULTS.
 // Only the Start screen has a click. After Start, every step is voice-only.
+/** Small skeleton of another device's camera (keypoints streamed from that device; never video). */
+function RemoteThumb({ dev, framesRef }: { dev: any; framesRef: React.MutableRefObject<Record<string, { w: number; h: number; pts: number[][]; at: number }>> }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const [live, setLive] = useState(false);
+  useEffect(() => {
+    let raf = 0, stop = false, lastDraw = 0;
+    const loop = (now: number) => {
+      if (stop) return; raf = requestAnimationFrame(loop);
+      if (now - lastDraw < 100) return; lastDraw = now;
+      const f = framesRef.current[dev.deviceId], c = ref.current; if (!c) return;
+      const fresh = !!f && Date.now() - f.at < 2000; setLive((p) => (p === fresh ? p : fresh));
+      if (f && (c.width !== f.w || c.height !== f.h)) { c.width = f.w; c.height = f.h; }
+      const ctx = c.getContext("2d"); if (!ctx) return;
+      if (!f || !fresh) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height); return; }
+      drawSkeleton(ctx, f.pts.map(([nx, ny, v]) => ({ x: nx * f.w, y: ny * f.h, v, nx, ny })), true);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => { stop = true; cancelAnimationFrame(raf); };
+  }, [dev.deviceId]);
+  return <div className="remote-thumb"><canvas ref={ref} width={240} height={320} />
+    <span className="rt-label">{dev.label}</span>
+    <span className={`rt-state ${live && dev.inView ? "ok" : "warn"}`}>{!live ? "No signal" : dev.inView ? "✓ In view" : "Partial view (OK)"}</span></div>;
+}
+
 export default function Practice({ asanaId, onExit, onPickAnother }: { asanaId: string; onExit: () => void; onPickAnother: () => void }) {
   const [asana, setAsana] = useState<any>(null);
   const [code, setCode] = useState("");
@@ -43,8 +67,14 @@ export default function Practice({ asanaId, onExit, onPickAnother }: { asanaId: 
   const [shots, setShots] = useState<Record<number, string>>({});
   const privacyRef = useRef<PrivacyEngine | null>(null);
   const makeShot = async (step: number, c: HTMLCanvasElement) => {
-    try { if (!privacyRef.current) privacyRef.current = await createPrivacyEngine(); const url = privacyRef.current.blur(c, c.width, c.height); setShots((p) => ({ ...p, [step]: url })); } catch { /* no thumbnail rather than an unblurred one */ }
+    try { if (!privacyRef.current) privacyRef.current = await createPrivacyEngine(); const url = privacyRef.current.blur(c, c.width, c.height); setShots((p) => ({ ...p, [step]: url })); }
+    catch (e: any) {
+      // The person/face model could not run on this device (e.g. some phones): still keep a photo, but FULLY blurred, never a sharp one.
+      setShotNote(`Face and background blur is not available on this device (${String(e?.message || e).slice(0, 90)}); its photos are saved fully blurred.`);
+      try { const url = fullBlurDataUrl(c, c.width, c.height); setShots((p) => ({ ...p, [step]: url })); } catch { /* no thumbnail rather than an unblurred one */ }
+    }
   };
+  const [shotNote, setShotNote] = useState("");
   const [captured, setCaptured] = useState(false);
   const audioRef = useRef<AudioContext | null>(null);
   const unlockAudio = () => { try { const AC: any = window.AudioContext || (window as any).webkitAudioContext; if (!audioRef.current && AC) audioRef.current = new AC(); audioRef.current?.resume?.(); } catch {} };
@@ -80,10 +110,19 @@ export default function Practice({ asanaId, onExit, onPickAnother }: { asanaId: 
   // open the mic only after the app has finished talking).
   const speakQ = useRef<string[]>([]);
   const speakingRef = useRef(false);
+  // Skeleton thumbnails of the other devices (keypoints only): Secondary sends, Primary draws.
+  const remoteFramesRef = useRef<Record<string, { w: number; h: number; pts: number[][]; at: number }>>({});
+  const multiRef = useRef(false);
+  const lastSkelSentRef = useRef(0);
+  const curSpokenRef = useRef("");
+  const WARN_RE = /cannot measure your pose/i;
+  // Framing is fine again: stop any "come within the camera" line that is still queued or being spoken.
+  const dropFramingWarnings = () => { speakQ.current = speakQ.current.filter((t) => !WARN_RE.test(t)); if (speakingRef.current && WARN_RE.test(curSpokenRef.current)) { try { speechSynthesis.cancel(); } catch {} } };
   const onDrainRef = useRef<(() => void) | null>(null);
   const pump = () => {
     if (speakingRef.current) return;
     const text = speakQ.current.shift();
+    curSpokenRef.current = text || "";
     if (text === undefined) { ttsBusyRef.current = false; const f = onDrainRef.current; onDrainRef.current = null; f?.(); return; }
     speakingRef.current = true; ttsBusyRef.current = true;
     let finished = false;
@@ -152,14 +191,18 @@ export default function Practice({ asanaId, onExit, onPickAnother }: { asanaId: 
     ws.onmessage = (ev) => {
       const msg = JSON.parse(ev.data);
       if (msg.you) { myIdRef.current = msg.you; }
-      if (msg.type === "state" && msg.asana) { setState(msg); if (typeof msg.demoIdx === "number") setDemoIdx(msg.demoIdx); isPrimaryRef.current = msg.primaryId === myIdRef.current; if (msg.state === "results") setScreen("results"); if (["start", "listening", "counting", "warning", "demo", "analysing"].includes(msg.state)) setScreen("coach"); }
+      if (msg.type === "skel" && isPrimaryRef.current) remoteFramesRef.current[msg.from] = { w: msg.w, h: msg.h, pts: msg.pts, at: Date.now() };
+      if (msg.type === "state") multiRef.current = (msg.devices?.length || 1) > 1;
+      if (msg.type === "state" && msg.state !== "warning" && isPrimaryRef.current) dropFramingWarnings();
+      if (msg.type === "state" && msg.asana) { setState(msg); if (typeof msg.demoIdx === "number") setDemoIdx(msg.demoIdx); isPrimaryRef.current = msg.primaryId === myIdRef.current; if (msg.state === "results") setScreen("results"); if (["start", "listening", "prompting", "settling", "counting", "warning", "demo", "analysing"].includes(msg.state)) setScreen("coach"); }
       if (msg.type === "analysing") setAnalysingStep(msg.step || 1);
       if (msg.type === "demoStep") { if (msg.done) { setDemoIdx(0); setDemoPaused(false); } else if (msg.n >= 1) { setDemoIdx(msg.n - 1); if (isPrimaryRef.current) { const n = msg.n; onDrainRef.current = () => send({ type: "demoSpoken", n }); } } }   // the next step starts only after this one has been spoken
       if (msg.type === "spoken" && isPrimaryRef.current) speakTracked(msg.text);
       if (msg.type === "count") { setCount(msg.value); setHoldUntil(0); if (msg.value === 1) setCaptured(false); }
       if (msg.type === "hold") { if (msg.done) setHoldUntil(0); else setHoldUntil(msg.until); }
       if (msg.type === "captureAt") {
-        const delay = Math.max(0, msg.ts - Date.now());
+        // Relative delay (no clock comparison): server and device clocks can differ by seconds, which made the shutter fire early/late.
+        const delay = Math.max(0, typeof msg.delayMs === "number" ? msg.delayMs : msg.ts - Date.now());
         setTimeout(() => capturePhoto(msg.step, msg.set), delay);
       }
       if (msg.type === "voiceWindow" && msg.open && isPrimaryRef.current) {
@@ -177,7 +220,7 @@ export default function Practice({ asanaId, onExit, onPickAnother }: { asanaId: 
             if (speakingRef.current || speakQ.current.length) { onDrainRef.current = go; return; } // still talking: wait
             awaitingListenRef.current = false;
             send({ type: "promptDone" });
-            startListening();
+            if (msg.phase !== "autoprompt") startListening();
           };
           if (speakingRef.current || speakQ.current.length) onDrainRef.current = go; else setTimeout(go, 300);
           goTimerRef.current = setTimeout(go, 35000);
@@ -202,9 +245,12 @@ export default function Practice({ asanaId, onExit, onPickAnother }: { asanaId: 
     try {
       const v = videoRef.current;
       if (v && streamRef.current) {
-        const c = document.createElement("canvas"); c.width = 640; c.height = 480;
-        c.getContext("2d")?.drawImage(v, 0, 0, 640, 480);
-        dataUrl = c.toDataURL("image/jpeg", 0.7); shotCanvas = c;
+        // Keep the camera's own aspect ratio (a portrait phone used to be squashed into 640x480) and a larger size so details such as a
+        // head lifted off the floor are visible to the pose-check model.
+        const vw = v.videoWidth || 640, vh = v.videoHeight || 480, sc = Math.min(1, 1024 / Math.max(vw, vh));
+        const c = document.createElement("canvas"); c.width = Math.round(vw * sc); c.height = Math.round(vh * sc);
+        c.getContext("2d")?.drawImage(v, 0, 0, c.width, c.height);
+        dataUrl = c.toDataURL("image/jpeg", 0.82); shotCanvas = c;
       }
     } catch {}
     playShutter(); setShutter((n) => n + 1); setCaptured(true);
@@ -279,7 +325,7 @@ export default function Practice({ asanaId, onExit, onPickAnother }: { asanaId: 
       };
       rec.onerror = (e: any) => {
         const code = e?.error;
-        if (code === "not-allowed") setMicErr("Microphone blocked for speech recognition. Allow microphone permission — voice is the only way to start each step.");
+        if (code === "not-allowed") setMicErr("Microphone blocked for speech recognition. Allow microphone permission — voice is how you start the first step.");
         // network / service / audio errors: browser recognition can't work here -> record + server transcription
         else if (code === "network" || code === "service-not-allowed" || code === "audio-capture" || code === "language-not-supported") fallBack();
         // no-speech / aborted: harmless, onend restarts while the window is open
@@ -316,7 +362,7 @@ export default function Practice({ asanaId, onExit, onPickAnother }: { asanaId: 
         } catch { listeningRef.current = false; setMicErr("Transcription error. Use Start again when ready."); }
       };
       rec.start(); setTimeout(() => { if (recRef.current === rec && rec.state !== "inactive") rec.stop(); }, 9000);
-    } catch { listeningRef.current = false; setMicErr("Microphone denied. Allow microphone permission — voice is the only way to start each step."); }
+    } catch { listeningRef.current = false; setMicErr("Microphone denied. Allow microphone permission — voice is how you start the first step."); }
   };
 
   const createSession = async () => {
@@ -343,7 +389,7 @@ export default function Practice({ asanaId, onExit, onPickAnother }: { asanaId: 
   }, [isAnalysing]);
   // Camera/mic off during the demo; secondary devices (which never press Start) switch theirs on when practice begins.
   const sst = state?.state;
-  const cameraWanted = sst === "listening" || sst === "counting" || sst === "warning";
+  const cameraWanted = sst === "listening" || sst === "prompting" || sst === "settling" || sst === "counting" || sst === "warning";
   useEffect(() => { if (sst === "demo" && camOn) releaseCamera(); }, [sst]);
   useEffect(() => { if (sst !== "counting") setCaptured(false); }, [sst]);
   useEffect(() => { if ((screen === "coach" || screen === "demo") && cameraWanted && !camOn) enableCamera(); }, [cameraWanted, screen]);
@@ -363,6 +409,11 @@ export default function Practice({ asanaId, onExit, onPickAnother }: { asanaId: 
         let r = null; try { r = engineRef.current!.detect(v, performance.now()); } catch {}
         const ctx = c.getContext("2d"); if (ctx) drawSkeleton(ctx, r?.pts ?? null, true);
         setSkelReady((p) => p || true);
+        // Secondary devices send their skeleton keypoints (about 8 per second) so the Primary can show a small skeleton of this camera.
+        if (multiRef.current && !isPrimaryRef.current && r?.pts && now - lastSkelSentRef.current > 120) {
+          lastSkelSentRef.current = now; const rd = (n: number) => Math.round(n * 1000) / 1000;
+          wsRef.current?.send(JSON.stringify({ type: "skelFrame", w: v.videoWidth, h: v.videoHeight, pts: r.pts.map((p) => [rd(p.nx), rd(p.ny), rd(p.v)]) }));
+        }
         // framing from the same detection, debounced so one noisy frame never pauses practice (out: 1 s, back in: 0.5 s)
         const det = !!r?.inFrame;
         if (det === detectedRef.current) { pending = null; return; }
@@ -379,9 +430,31 @@ export default function Practice({ asanaId, onExit, onPickAnother }: { asanaId: 
     const pid = state?.results?.practiceId; if (!pid) return;
     for (const [k, url] of Object.entries(shots)) {
       const key = `${pid}:${k}`; if (uploadedRef.current.has(key)) continue; uploadedRef.current.add(key);
-      api(`/api/history/${pid}/photos/${k}`, { method: "POST", body: JSON.stringify({ dataUrl: url }) }).catch(() => uploadedRef.current.delete(key));
+      const me = (state?.devices || []).find((d: any) => d.deviceId === myIdRef.current);
+      api(`/api/history/${pid}/photos/${k}`, { method: "POST", body: JSON.stringify({ dataUrl: url, slot: mySlot(), label: me?.label || myLabel, primary: isPrimaryRef.current }) }).catch(() => uploadedRef.current.delete(key));
     }
   }, [state?.results?.practiceId, shots]);
+  // Photos from the OTHER devices arrive through History (each device uploads its own blurred photo). Poll briefly so the results page shows all of them.
+  const [histPhotos, setHistPhotos] = useState<Record<number, Array<{ slot: string; label: string; key: string }>>>({});
+  useEffect(() => {
+    const pid = state?.results?.practiceId; if (!pid || screen !== "results") return;
+    let stop = false, tries = 0;
+    const tick = async () => {
+      if (stop) return; tries++;
+      try { const h = await api(`/api/history/${pid}`); const m: any = {}; for (const st of h.steps || []) if (st.photos?.length) m[st.n] = st.photos; else if (st.photoKey) m[st.n] = [{ slot: "main", label: "Photo", key: st.photoKey }]; if (!stop) setHistPhotos(m); } catch {}
+      if (!stop && tries < 12) setTimeout(tick, 2000);
+    };
+    const t = setTimeout(tick, 800);
+    return () => { stop = true; clearTimeout(t); };
+  }, [state?.results?.practiceId, screen]);
+  const myLabel = /Mobi|iPhone/i.test(navigator.userAgent) ? "Phone" : "Laptop";
+  const mySlot = () => myIdRef.current.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 16) || "main";   // same sanitizing as the server
+  // All blurred photos of a step, one per camera: server copies first (all devices), plus this device's own local one if not uploaded yet.
+  const photosFor = (n: number): Array<{ label: string; src: string }> => {
+    const srv = (histPhotos[n] || []).map((p) => ({ slot: p.slot, label: p.label, src: `/files/${p.key}` }));
+    if (shots[n] && !srv.some((p) => p.slot === mySlot())) srv.unshift({ slot: mySlot(), label: myLabel, src: shots[n] });
+    return srv;
+  };
   useEffect(() => () => { engineRef.current?.close(); engineRef.current = null; privacyRef.current?.close(); privacyRef.current = null; }, []);
   // Early returns must come AFTER every hook (React error #310 otherwise: the hook count changed once the asana loaded).
   if (err && !asana) return <div className="page"><main className="main"><div className="note red">{err}</div><button className="btn" onClick={onExit}>Back</button></main></div>;
@@ -419,10 +492,11 @@ export default function Practice({ asanaId, onExit, onPickAnother }: { asanaId: 
   if (screen === "results" && snap?.results) {
     const r = snap.results;
     return <div className="page"><header className="header"><div className="brand display">Muse Yoga</div><span className="chip">{asana.name} — Results</span></header><main className="main">
+      {shotNote && <div className="note amber" role="status" style={{ marginBottom: 10 }}>{shotNote}</div>}
       <div className="pagehead"><div><h2 className="display">Your Results — {asana.name}</h2><p>Read aloud on your Primary. No score — each step is correct, or needs a correction. ({r.correctCount} of {r.total} steps correct — a factual count, not a grade.)</p></div><div className="sp"></div><span className="chip">Today</span></div>
-      <div className="listrows">{r.steps.map((s: any) => <button key={s.n} className="resultstep" onClick={() => setLarge(s)}>{annotated(s)}{shots[s.n] && <img className="shotthumb" src={shots[s.n]} alt={`Your photo, step ${s.n} (blurred)`} />}<div><div className={`verdict ${s.verdict === "correct" ? "ok" : s.verdict === "incorrect" ? "no" : "mid"}`}>{s.verdict === "correct" ? "✓" : s.verdict === "incorrect" ? "✕" : "–"} Step {s.n} — {s.verdict === "correct" ? "Correct" : s.verdict === "incorrect" ? "Needs correction" : "Could not check"}</div><p className="muted" style={{ lineHeight: 1.6, marginTop: 5 }}>{s.correctionText}</p></div>{(s.marks || []).length > 0 && <span className="chip clay" style={{ flex: "none" }}>Annotated character image</span>}<span className="tap">View large →</span></button>)}</div>
+      <div className="listrows">{r.steps.map((s: any) => <button key={s.n} className="resultstep" onClick={() => setLarge(s)}>{annotated(s)}{photosFor(s.n).map((p, k) => <span key={k} style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: "none" }}><img className="shotthumb" src={p.src} alt={`${p.label} photo, step ${s.n} (blurred)`} /><span className="muted" style={{ fontSize: 11.5 }}>{p.label}</span></span>)}<div><div className={`verdict ${s.verdict === "correct" ? "ok" : s.verdict === "incorrect" ? "no" : "mid"}`}>{s.verdict === "correct" ? "✓" : s.verdict === "incorrect" ? "✕" : "–"} Step {s.n} — {s.verdict === "correct" ? "Correct" : s.verdict === "incorrect" ? "Needs correction" : "Could not check"}</div><p className="muted" style={{ lineHeight: 1.6, marginTop: 5 }}>{s.correctionText}</p></div>{(s.marks || []).length > 0 && <span className="chip clay" style={{ flex: "none" }}>Annotated character image</span>}<span className="tap">View large →</span></button>)}</div>
       <div className="flowfoot"><span className="muted" style={{ fontSize: 13.5 }}>Your photo is blurred (background and face) on this device before it is saved to your History. Only you can see it, and you can delete it there at any time.</span><span className="sp"></span><button className="btn light" onClick={() => { send({ type: "endSession" }); onExit(); }}>End session</button><button className="btn ghost" onClick={onPickAnother}>Pick Another Asana</button><button className="btn" onClick={() => { setScreen("coach"); send({ type: "readyClicked" }); }}>↺ Practice Again — all steps</button></div>
-      {large && <div className="modal" onClick={() => setLarge(null)}><div className="box" onClick={(e) => e.stopPropagation()}><h3 className="display">Step {large.n} — {large.verdict === "correct" ? "Correct" : large.verdict === "incorrect" ? "Needs correction" : "Could not check"}</h3><div className="bigpair">{annotated(large, true)}{shots[large.n] && <figure className="shotfig"><img src={shots[large.n]} alt={`Your photo, step ${large.n} (blurred)`} /><figcaption>Your photo — background and face blurred; saved to your History (only you can see it)</figcaption></figure>}</div><p>{large.correctionText}</p>{large.debug && <div className="note amber" style={{ marginTop: 10 }}><b>DEBUG — what was sent to the model</b> ({large.debug.sent?.mode}; reference included: {String(large.debug.sent?.referenceIncluded)}; student photos: {large.debug.sent?.photoCount}).<div style={{ display: "flex", gap: 8, flexWrap: "nowrap", overflowX: "auto", marginTop: 6 }}><figure style={{ margin: 0 }}><img src={`/files/${large.imageKey}`} style={{ height: 100 }} /><figcaption style={{ fontSize: 11 }}>Reference (stored)</figcaption></figure>{(large.debug.photos || []).map((u: string, i: number) => <figure key={i} style={{ margin: 0 }}><img src={u} style={{ height: 100 }} /><figcaption style={{ fontSize: 11 }}>Photo {i + 1}{large.debug.bestPhoto === i + 1 ? " (model's pick)" : ""}</figcaption></figure>)}</div>{(large.debug.issues || []).length > 0 && <ul style={{ margin: "6px 0 0 16px", fontSize: 12 }}>{large.debug.issues.map((it: any, i: number) => <li key={i}><b>{it.part}</b>: {it.problem}</li>)}</ul>}{large.debug.photos?.length > 0 && (large.debug.issues || []).some((it: any) => it.photo) && <div style={{ marginTop: 8 }}><div style={{ fontSize: 11 }}>Your photo, annotated (drawn by the app from the model's coordinates):</div><div style={{ position: "relative", display: "inline-block" }}><img src={large.debug.photos[Math.min(large.debug.photos.length, large.debug.bestPhoto || 1) - 1]} style={{ maxHeight: 260 }} />{large.debug.issues.filter((it: any) => it.photo).map((it: any, i: number) => <span key={i} style={{ position: "absolute", left: `${it.photo.x * 100}%`, top: `${it.photo.y * 100}%`, width: `${it.photo.r * 200}%`, aspectRatio: "1", transform: "translate(-50%,-50%)", border: "3px solid #C0392B", borderRadius: "50%" }}><span style={{ position: "absolute", left: "100%", top: "50%", transform: "translateY(-50%)", marginLeft: 4, background: "#C0392B", color: "#fff", fontSize: 11, padding: "1px 4px", borderRadius: 4, whiteSpace: "nowrap" }}>{it.problem}</span></span>)}</div></div>}{large.debug.annotatedPhoto && <div style={{ marginTop: 8 }}><div style={{ fontSize: 11 }}>Your photo, annotated by muse-image-1.0 (image model):</div><img src={large.debug.annotatedPhoto} style={{ maxHeight: 260 }} /></div>}</div>}<p className="muted" style={{ fontSize: 12.5 }}>Numbered circles are drawn on the stored character image and match the numbers in the text above. Your photo is blurred (background and face) before it is saved to your History.</p><div className="flowfoot"><span className="sp"></span><button className="btn small" onClick={() => setLarge(null)}>Close</button></div></div></div>}
+      {large && <div className="modal" onClick={() => setLarge(null)}><div className="box" onClick={(e) => e.stopPropagation()}><h3 className="display">Step {large.n} — {large.verdict === "correct" ? "Correct" : large.verdict === "incorrect" ? "Needs correction" : "Could not check"}</h3><div className="bigpair">{annotated(large, true)}{photosFor(large.n).map((p, k) => <figure className="shotfig" key={k}><img src={p.src} alt={`${p.label} photo, step ${large.n} (blurred)`} /><figcaption>{p.label} camera — background and face blurred; saved to your History (only you can see it)</figcaption></figure>)}</div><p>{large.correctionText}</p>{large.debug && <div className="note amber" style={{ marginTop: 10 }}><b>DEBUG — what was sent to the model</b> ({large.debug.sent?.mode}; reference included: {String(large.debug.sent?.referenceIncluded)}; student photos: {large.debug.sent?.photoCount}).<div style={{ display: "flex", gap: 8, flexWrap: "nowrap", overflowX: "auto", marginTop: 6 }}><figure style={{ margin: 0 }}><img src={`/files/${large.imageKey}`} style={{ height: 100 }} /><figcaption style={{ fontSize: 11 }}>Reference (stored)</figcaption></figure>{(large.debug.photos || []).map((u: string, i: number) => <figure key={i} style={{ margin: 0 }}><img src={u} style={{ height: 100 }} /><figcaption style={{ fontSize: 11 }}>Photo {i + 1}{large.debug.bestPhoto === i + 1 ? " (model's pick)" : ""}</figcaption></figure>)}</div>{(large.debug.issues || []).length > 0 && <ul style={{ margin: "6px 0 0 16px", fontSize: 12 }}>{large.debug.issues.map((it: any, i: number) => <li key={i}><b>{it.part}</b>: {it.problem}</li>)}</ul>}{large.debug.photos?.length > 0 && (large.debug.issues || []).some((it: any) => it.photo) && <div style={{ marginTop: 8 }}><div style={{ fontSize: 11 }}>Your photo, annotated (drawn by the app from the model's coordinates):</div><div style={{ position: "relative", display: "inline-block" }}><img src={large.debug.photos[Math.min(large.debug.photos.length, large.debug.bestPhoto || 1) - 1]} style={{ maxHeight: 260 }} />{large.debug.issues.filter((it: any) => it.photo).map((it: any, i: number) => <span key={i} style={{ position: "absolute", left: `${it.photo.x * 100}%`, top: `${it.photo.y * 100}%`, width: `${it.photo.r * 200}%`, aspectRatio: "1", transform: "translate(-50%,-50%)", border: "3px solid #C0392B", borderRadius: "50%" }}><span style={{ position: "absolute", left: "100%", top: "50%", transform: "translateY(-50%)", marginLeft: 4, background: "#C0392B", color: "#fff", fontSize: 11, padding: "1px 4px", borderRadius: 4, whiteSpace: "nowrap" }}>{it.problem}</span></span>)}</div></div>}{large.debug.annotatedPhoto && <div style={{ marginTop: 8 }}><div style={{ fontSize: 11 }}>Your photo, annotated by muse-image-1.0 (image model):</div><img src={large.debug.annotatedPhoto} style={{ maxHeight: 260 }} /></div>}</div>}<p className="muted" style={{ fontSize: 12.5 }}>Numbered circles are drawn on the stored character image and match the numbers in the text above. Your photo is blurred (background and face) before it is saved to your History.</p><div className="flowfoot"><span className="sp"></span><button className="btn small" onClick={() => setLarge(null)}>Close</button></div></div></div>}
     </main></div>;
   }
 
@@ -444,6 +518,7 @@ export default function Practice({ asanaId, onExit, onPickAnother }: { asanaId: 
           <canvas ref={skelRef} className="skel" style={{ display: camOn && !skelFallback ? "block" : "none" }} />
           {shutter > 0 && <div key={shutter} className="shutter" aria-hidden><i className="blade top" /><i className="blade bot" /></div>}
           {camOn && !skelFallback && !skelReady && <div className="skel-wait">Starting skeleton view…</div>}
+          {isPrimaryRef.current && (snap?.devices || []).filter((d: any) => d.deviceId !== myIdRef.current).length > 0 && <div className="remote-thumbs">{(snap.devices as any[]).filter((d: any) => d.deviceId !== myIdRef.current).map((d: any) => <RemoteThumb key={d.deviceId} dev={d} framesRef={remoteFramesRef} />)}</div>}
           {!camOn && <div className="stage">
             {inDemo ? <>
               <div className="stage-kicker">DEMO · STEP {displayIdx + 1} OF {asana.steps.length}</div>
@@ -454,7 +529,7 @@ export default function Practice({ asanaId, onExit, onPickAnother }: { asanaId: 
               <div className="stage-kicker">READY WHEN YOU ARE</div>
               <h2 className="display stage-title">{asana.name}</h2>
               <p className="stage-sub">{asana.steps.length} steps · about {Math.max(1, Math.round(asana.steps.reduce((t: number, x: any) => t + (x.durationS || 20), 0) / 60))} min of holding</p>
-              <p className="stage-note">Tap <b>Start</b>. Your camera and microphone switch on, each step is spoken aloud, and you say “Ready” when you are in position.</p>
+              <p className="stage-note">Tap <b>Start</b>. Your camera and microphone switch on, each step is spoken aloud, and you say “Ready” once, for the first step. The later steps then follow on their own.</p>
               {camErr && <p className="stage-err">{camErr}</p>}
             </> : <>
               <div className="stage-kicker">CAMERA OFF</div>
@@ -462,7 +537,7 @@ export default function Practice({ asanaId, onExit, onPickAnother }: { asanaId: 
               <button className="btn primary" onClick={enableCamera}>Enable Camera</button>{camErr && <p className="stage-err">{camErr}</p>}
             </>}
           </div>}
-          <div style={{ position: "absolute", top: 14, left: 14, display: "flex", gap: 8, zIndex: 4 }}>{camOn && <><span className="tag">{skelFallback ? "● Your camera" : "● Skeleton view · no video shown"}</span><span className="tag">{inView ? "✓ Fully in view" : "⚠ Not fully in view"}</span></>}</div>
+          <div style={{ position: "absolute", top: 14, left: 14, display: "flex", gap: 8, zIndex: 4 }}>{camOn && <><span className="tag">{skelFallback ? "● Your camera" : "● Skeleton view · no video shown"}</span><span className="tag">{inView ? "✓ Fully in view" : isPrimaryRef.current ? "⚠ Not fully in view" : "Partial view — fine for a helper camera"}</span></>}</div>
           <div style={{ position: "absolute", left: 14, bottom: 14, display: "flex", gap: 8, zIndex: 4 }}>
             {(snap?.devices || []).filter((d: any) => d.deviceId !== myIdRef.current).map((d: any) => <span key={d.deviceId} className="tag">{d.label} · Muted <button style={{ color: "#fff", fontWeight: 800, textDecoration: "underline" }} onClick={() => send({ type: "switchPrimary" })}>{snap.pendingPrimary === d.deviceId ? "Primary after this step ✓" : "Make Primary"}</button></span>)}
             {!isPrimary && <button className="tag" onClick={() => send({ type: "switchPrimary" })}>{snap?.pendingPrimary ? "Primary after this step ✓" : "Make this device Primary"}</button>}
@@ -476,6 +551,7 @@ export default function Practice({ asanaId, onExit, onPickAnother }: { asanaId: 
       </main>
       <div className="coach-focus" aria-live="polite">
         {snap?.state === "demo" ? <><span className="chip clay">DEMO · no photos taken</span><span>Step {displayIdx + 1} of {asana.steps.length} · spoken aloud on Primary</span><button className="btn light small" onClick={() => { if (demoPaused) { send({ type: "demoControl", action: "resume" }); setDemoPaused(false); } else { send({ type: "demoControl", action: "pause" }); setDemoPaused(true); } }}>{demoPaused ? "▶ Resume" : "⏸ Pause"}</button><button className="btn ghost small" onClick={() => send({ type: "demoControl", action: "again" })}>↺ Hear This Step Again</button><button className="btn small" onClick={() => { send({ type: "demoControl", action: "end" }); setDemoPaused(false); }}>End Demo → Ready</button></>
+        : snap?.state === "prompting" || snap?.state === "settling" ? <><div className="coach-count" style={{ fontSize: 30 }}>Get into position</div><span>Step {stepIdx + 1} — listen to the instruction, then the countdown starts by itself.</span></>
         : snap?.state === "listening" ? <><div className="coach-count" style={{ fontSize: 30 }}>Listening…</div><span>Say “Ready” when you are in position (Primary mic only, 10 seconds).</span></>
         : snap?.state === "counting" ? (captured
             ? <><div className="coach-count" style={{ fontSize: 34 }}>Captured ✓</div><span>Photo taken · Step {stepIdx + 1} — relax</span></>

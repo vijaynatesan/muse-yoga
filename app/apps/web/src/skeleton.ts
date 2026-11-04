@@ -5,7 +5,7 @@ import { FilesetResolver, PoseLandmarker } from "@mediapipe/tasks-vision";
 export interface Pt { x: number; y: number; v: number; nx: number; ny: number }
 export interface PoseResult { pts: Pt[]; inFrame: boolean; missing: string[] }
 
-const FRAME_JOINTS = [11, 12, 23, 24, 25, 26, 27, 28];
+const FRAME_PAIRS: Array<[number, number]> = [[11, 12], [23, 24], [25, 26], [27, 28]];   // shoulders, hips, knees, ankles
 const NAMES: Record<number, string> = { 11: "L shoulder", 12: "R shoulder", 23: "L hip", 24: "R hip", 25: "L knee", 26: "R knee", 27: "L ankle", 28: "R ankle" };
 const CONNECTIONS: Array<[number, number]> = (PoseLandmarker.POSE_CONNECTIONS as any[]).map((c) => [c.start, c.end]);
 
@@ -33,7 +33,14 @@ export async function createPose(): Promise<PoseEngine> {
       });
       prev = pts;
       const missing: string[] = [];
-      for (const i of FRAME_JOINTS) { const q = pts[i]; if (q.v < 0.5 || !(q.nx > 0.02 && q.nx < 0.98 && q.ny > 0.02 && q.ny < 0.98)) missing.push(NAMES[i]); }
+      // Per left/right pair: a joint hidden behind the body (side view, or a bent limb) is fine as long as its partner is clearly visible.
+      // Every clearly visible joint must be inside the frame; a pair with NO clearly visible joint counts as missing.
+      const inside = (q: Pt) => q.nx > 0.02 && q.nx < 0.98 && q.ny > 0.02 && q.ny < 0.98;
+      for (const [l, r] of FRAME_PAIRS) {
+        const seen = [l, r].filter((i) => pts[i].v >= 0.5);
+        if (!seen.length) missing.push(NAMES[l].replace("L ", ""));
+        else for (const i of seen) if (!inside(pts[i])) missing.push(NAMES[i]);
+      }
       return { pts, inFrame: missing.length === 0, missing };
     },
     close() { try { lm.close(); } catch {} },

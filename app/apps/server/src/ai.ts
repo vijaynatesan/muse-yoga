@@ -50,11 +50,21 @@ async function llm(parts: Part[], purpose: string, o: { vision?: boolean; estUsd
 const wonder = (prompt: string, purpose: string, maxTokens?: number) => llm([{ text: prompt }], purpose, { maxTokens });
 
 /** images/edits on the configured image provider (reference image + prompt -> image bytes). Never throws on HTTP errors; the caller logs/decides. */
-async function imageEdit(prompt: string, img: Buffer, mime: string, filename: string, size?: string): Promise<{ ok: boolean; status: number; model: string; provider: Provider; bytes?: Buffer; costUsd?: number }> {
+/** Real image type from the file's magic bytes. Generated images are often WebP even when stored as .png, and the API rejects a wrong declared type. */
+function sniffMime(b: Buffer, fallback: string): string {
+  if (b.length > 12 && b.subarray(0, 4).toString("latin1") === "RIFF" && b.subarray(8, 12).toString("latin1") === "WEBP") return "image/webp";
+  if (b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return "image/png";
+  if (b.length > 3 && b[0] === 0xff && b[1] === 0xd8) return "image/jpeg";
+  return fallback;
+}
+const extFor = (m: string) => (m === "image/webp" ? "webp" : m === "image/jpeg" ? "jpg" : "png");
+async function imageEdit(prompt: string, img: Buffer, mime: string, filename: string, size?: string, extra: Array<{ buf: Buffer; mime: string; filename: string }> = []): Promise<{ ok: boolean; status: number; model: string; provider: Provider; bytes?: Buffer; costUsd?: number }> {
   const p = providerFor("image");
+  mime = sniffMime(img, mime); filename = `${filename.replace(/\.\w+$/, "")}.${extFor(mime)}`;
+  extra = extra.map((x) => { const m = sniffMime(x.buf, x.mime); return { buf: x.buf, mime: m, filename: `${x.filename.replace(/\.\w+$/, "")}.${extFor(m)}` }; });
   if (p === "openrouter") {
     const model = orModel("image");
-    const r = await fetch(`${OR_BASE()}/images`, { method: "POST", headers: orHeaders(), body: JSON.stringify({ model, prompt, ...(size ? { size } : {}), input_references: [{ type: "image_url", image_url: { url: `data:${mime};base64,${img.toString("base64")}` } }] }) });
+    const r = await fetch(`${OR_BASE()}/images`, { method: "POST", headers: orHeaders(), body: JSON.stringify({ model, prompt, ...(size ? { size } : {}), input_references: [{ buf: img, mime }, ...extra].map((x) => ({ type: "image_url", image_url: { url: `data:${x.mime};base64,${x.buf.toString("base64")}` } })) }) });
     if (!r.ok) return { ok: false, status: r.status, model, provider: p };
     const j: any = await r.json(); const it = j.data?.[0] || {}; let bytes: Buffer | undefined;
     if (it.b64_json) bytes = Buffer.from(it.b64_json, "base64"); else if (it.url) { const ir = await fetch(it.url); if (ir.ok) bytes = Buffer.from(await ir.arrayBuffer()); }
@@ -63,6 +73,7 @@ async function imageEdit(prompt: string, img: Buffer, mime: string, filename: st
   const form = new FormData();
   form.set("model", "muse-image-1.0"); form.set("prompt", prompt); if (size) form.set("size", size);
   form.set("image[0]", new Blob([img as any], { type: mime }), filename);
+  extra.forEach((x, k) => form.set(`image[${k + 1}]`, new Blob([x.buf as any], { type: x.mime }), x.filename));
   const r = await fetch(`${BASE}/images/edits`, { method: "POST", headers: { Authorization: `Bearer ${key()}` }, body: form });
   if (!r.ok) return { ok: false, status: r.status, model: "muse-image-1.0", provider: "meta" };
   const j: any = await r.json(); const it = j.data?.[0] || {}; let bytes: Buffer | undefined;
@@ -114,7 +125,8 @@ function imageGate(bytes: Buffer): string {
 }
 
 /** Image prompt for ONE step of a continuous sequence: the picture must keep every position held from earlier steps unless this step changes it. */
-export function imagePrompt(instruction: string, stepN: number, ctx: { pose?: string; total?: number; previous?: string[] } = {}): string {
+export function imagePrompt(instruction: string, stepN: number, ctx: { pose?: string; total?: number; previous?: string[]; adjustment?: string; asanaName?: string; allSteps?: string[]; hasCurrentImage?: boolean; currentImage?: Buffer; brief?: PoseBrief | null; feedback?: string[]; refining?: boolean } = {}): string {
+  if (ctx.adjustment) return reviseImagePrompt(instruction, stepN, ctx);
   const prev = (ctx.previous || []).slice(-5).map((t, i, arr) => `${(ctx.previous!.length - arr.length) + i + 1}) ${t.slice(0, 220)}`);
   const lines = [
     "Same character as the reference image: same face, hair, clothes and art style; exactly 1 head, 2 arms, 2 legs.",
@@ -123,19 +135,82 @@ export function imagePrompt(instruction: string, stepN: number, ctx: { pose?: st
   if (prev.length) lines.push(`Earlier steps already done (their positions are STILL HELD unless this step explicitly changes them — a raised or bent leg stays raised or bent, a foot stays where it was placed, arms stay as they were):\n${prev.join("\n")}`);
   lines.push(ctx.pose ? `COMPLETE body position to draw in this image: ${ctx.pose}` : `Step instruction to draw (apply it on top of the positions held from earlier steps): ${instruction}`);
   if (ctx.pose && instruction && !instruction.startsWith(ctx.pose.slice(0, 20))) lines.push(`(Student-facing instruction for this step: ${instruction})`);
-  lines.push("Show the whole body clearly, front view, standing on a clean plain background.");
+  if (ctx.adjustment) lines.push(`MANDATORY CORRECTION from the editor — apply this exactly, it overrides anything above that conflicts with it:\n${ctx.adjustment}`);
+  lines.push("Show the whole body clearly on a clean plain white background, from the angle that shows this pose best (front view for standing poses; side or three-quarter view for poses lying or sitting on the floor).");
   return lines.join("\n");
+}
+
+/** Prompt for REDRAWING one step because the editor says the current picture is wrong.
+ *  Order matters for image models: the editor's correction and the visual checklist come FIRST, wider context last. */
+export function reviseImagePrompt(instruction: string, stepN: number, ctx: { total?: number; adjustment?: string; asanaName?: string; allSteps?: string[]; hasCurrentImage?: boolean; pose?: string; brief?: PoseBrief | null; feedback?: string[]; refining?: boolean }): string {
+  const seq = (ctx.allSteps || []).map((t, i) => `${i + 1}) ${t.slice(0, 260)}${i + 1 === stepN ? "   <<< THIS STEP" : ""}`);
+  const must = (ctx.brief?.mustShow || []).map((m, i) => `${i + 1}. ${m}`);
+  return [
+    `TASK: redraw ONE picture of an illustrated yoga sequence${ctx.asanaName ? ` (asana: ${ctx.asanaName})` : ""}. The body position must match the text below exactly.`,
+    `EDITOR'S CORRECTION (authoritative, follow it literally; it overrides the old picture and anything else here):\n${ctx.adjustment}`,
+    must.length ? `MUST SHOW, every item must be clearly visible in the picture (a reviewer will check each one):\n${must.join("\n")}` : "",
+    ctx.brief?.brief ? `Complete body position, in picture terms: ${ctx.brief.brief}` : (ctx.pose ? `Body position summary: ${ctx.pose}` : ""),
+    ctx.brief?.view ? `Camera view: ${ctx.brief.view}. Keep hands and feet unhidden and large enough that finger and toe directions can be seen.` : "Choose the camera view that shows the pose best, and keep hands and feet visible.",
+    ctx.feedback?.length ? `A previous attempt was REJECTED by a reviewer for these problems. Fix exactly these:\n- ${ctx.feedback.join("\n- ")}` : "",
+    `Student-facing instruction for step ${stepN}${ctx.total ? ` of ${ctx.total}` : ""}: ${instruction}`,
+    "Image 1 is the CHARACTER REFERENCE: copy ONLY the face, hair, headband, clothes and drawing style. Do NOT copy its pose or camera angle.",
+    ctx.hasCurrentImage ? (ctx.refining ? "Image 2 is the previous attempt. It is still wrong in the ways listed above; redraw the body position, do not just copy it." : "Image 2 is the CURRENT picture for this step. It does NOT match the text above; redraw the body position from scratch, do not copy its pose.") : "",
+    seq.length ? `For context only, the whole sequence:\n${seq.join("\n")}` : "",
+    "Rules: exactly 1 head, 2 arms, 2 legs; correct anatomy; a person lying down is drawn lying on the floor (side or three-quarter view), never standing or squatting. Whole body, plain white background, same art style as the reference.",
+  ].filter(Boolean).join("\n\n");
+}
+
+export interface PoseBrief { view: string; brief: string; mustShow: string[] }
+/** Turns the instruction + editor correction into an unambiguous drawing brief and a short checklist of visually checkable facts. Null if unavailable. */
+export async function buildPoseBrief(asanaName: string, allSteps: string[], stepN: number, instruction: string, adjustment: string): Promise<PoseBrief | null> {
+  if (providerFor("text") === "mock") return null;
+  try {
+    const seq = allSteps.map((t, i) => `${i + 1}) ${t.slice(0, 260)}`).join("\n");
+    const out = await wonder(`You direct an illustrator drawing step ${stepN} of the yoga asana "${asanaName}".
+All steps:
+${seq}
+
+Step ${stepN} instruction: ${instruction}
+Editor's correction (authoritative, keep EVERY detail of it): ${adjustment}
+
+Write the drawing direction as JSON only:
+{"view":"best camera angle and which way the head points in the picture, e.g. 'side view, head on the left'","brief":"2-4 plain sentences giving the COMPLETE final body position for the picture: legs, feet, hips, torso, head, and for EACH arm the shoulder, elbow, wrist, palm and the direction the fingers point, using picture terms (left/right/up/down/toward the camera, toward the head/feet) and what touches the floor. Translate relative phrases like 'toward your shoulders' into picture terms for this camera angle.","mustShow":["3-7 short, visually checkable facts, listing the easily-missed details first (hands, fingers, feet, elbows), each one something a reviewer can verify by looking at the picture"]}`, "creation.posebrief", 900);
+    const m = out.match(/\{[\s\S]*\}/); if (!m) return null;
+    const j = JSON.parse(m[0]);
+    const mustShow = (Array.isArray(j.mustShow) ? j.mustShow : []).map((x: any) => String(x).slice(0, 200)).filter(Boolean).slice(0, 8);
+    if (!j.brief || !mustShow.length) return null;
+    return { view: String(j.view || "").slice(0, 160), brief: String(j.brief).slice(0, 900), mustShow };
+  } catch { return null; }
+}
+
+/** A vision model looks at the generated picture and checks each must-show fact. Null if the check could not run. */
+export async function critiqueStepImage(img: Buffer, instruction: string, adjustment: string, mustShow: string[]): Promise<{ ok: boolean; problems: string[] } | null> {
+  if (providerFor("text") === "mock" || !img?.length) return null;
+  try {
+    const mime = sniffMime(img, "image/png");
+    const out = await llm([{ text: `You review an illustration of one step of a yoga sequence. Step text: "${instruction}". Editor's correction: "${adjustment}".
+Look at the picture carefully (especially hands, fingers, feet, elbows) and check each item. Be strict about body parts' positions and directions, but ignore art style.
+Items:
+${mustShow.map((m, i) => `${i + 1}. ${m}`).join("\n")}
+Reply JSON only: {"checks":[{"n":1,"status":"met"|"not_met","note":"what you actually see, max 14 words"}],"problems":["one short fix instruction per not_met item, e.g. 'Fingers must point toward the shoulders, not away'"]}` }, { image: `data:${mime};base64,${img.toString("base64")}` }], "creation.imagecheck", { vision: true, estUsd: 0.03, maxTokens: 900 });
+    const m = out.match(/\{[\s\S]*\}/); if (!m) return null;
+    const j = JSON.parse(m[0]);
+    const bad = (Array.isArray(j.checks) ? j.checks : []).filter((c: any) => c?.status === "not_met");
+    const problems = (Array.isArray(j.problems) ? j.problems : []).map((x: any) => String(x).slice(0, 200)).filter(Boolean).slice(0, 6);
+    if (bad.length && !problems.length) problems.push(...bad.map((c: any) => String(c.note || "item not met").slice(0, 200)));
+    return { ok: bad.length === 0, problems };
+  } catch { return null; }
 }
 
 /** images/edits ONLY (A7). Returns the real generated bytes in meta mode
  *  (undefined in mock mode, where the caller copies the character image).
  *  Throws when the automated gate rejects the image, so the caller can
  *  regenerate (≤3 attempts, S3.5). */
-export async function generateStepImage(instruction: string, characterImageKey: string, stepN: number, attempt = 1, ctx: { pose?: string; total?: number; previous?: string[] } = {}): Promise<{ mode: string; gate: string; bytes?: Buffer }> {
+export async function generateStepImage(instruction: string, characterImageKey: string, stepN: number, attempt = 1, ctx: { pose?: string; total?: number; previous?: string[]; adjustment?: string; asanaName?: string; allSteps?: string[]; hasCurrentImage?: boolean; currentImage?: Buffer; brief?: PoseBrief | null; feedback?: string[]; refining?: boolean } = {}): Promise<{ mode: string; gate: string; bytes?: Buffer }> {
   if (providerFor("image") !== "mock") {
     const buf = readFileSync(join(OBJECTS_DIR, characterImageKey));
     const t0 = Date.now();
-    const x = await imageEdit(imagePrompt(instruction, stepN, ctx), buf, "image/png", "character.png", "1024x1024");
+    const x = await imageEdit(imagePrompt(instruction, stepN, { ...ctx, hasCurrentImage: !!ctx.currentImage }), buf, "image/png", "character.png", "1024x1024", ctx.adjustment && ctx.currentImage ? [{ buf: ctx.currentImage, mime: "image/png", filename: "current.png" }] : []);
     const purpose = `creation.image.step${stepN}`, cost = x.costUsd ?? 0.01;
     if (!x.ok) { logAiCall(x.model, purpose, Date.now() - t0, 0, { mode: "images/edits", gate: `http-${x.status}`, attempt, provider: x.provider }); throw Object.assign(new Error(`image edit ${x.status}`), { status: x.status }); }
     if (!x.bytes) { logAiCall(x.model, purpose, Date.now() - t0, cost, { mode: "images/edits", gate: "fail-empty-response", attempt, provider: x.provider }); throw new Error("image edit returned no image data"); }
@@ -160,8 +235,8 @@ export async function judgeIntent(feedback: string): Promise<{ ok: boolean; reas
 }
 
 /** Admin step editing (C16): is this ONE safe, genuine yoga pose instruction (or image adjustment)? Heuristic first, AI second; any AI failure falls back to the heuristic. */
-export async function judgeStepText(text: string): Promise<{ ok: boolean; reason: string }> {
-  const h = stepTextCheckHeuristic(text); if (!h.ok) return h;
+export async function judgeStepText(text: string, maxLen = 400): Promise<{ ok: boolean; reason: string }> {
+  const h = stepTextCheckHeuristic(text, maxLen); if (!h.ok) return h;
   if (providerFor("text") !== "mock") {
     try {
       const out = await wonder(`Is the quoted text a single, safe, genuine yoga pose instruction (body positions/movements/breathing for one step of an asana) or a short adjustment to a pose picture? It must not contain unrelated content, advertising, medical claims, or anything dangerous. Reply JSON {"ok":true/false,"reason":"..."}. Text: ${JSON.stringify(text.slice(0, 400))}`, "creation.steptext");
@@ -191,10 +266,12 @@ export async function judgeAlignment(feedback: string, referenceText: string): P
 /** Pose validation. Meta mode sends the in-memory photos (best set only,
  *  never stored) to the vision model. Any failure → could_not_check,
  *  never a fabricated "correct". Mock mode is deterministic offline. */
-export async function validatePose(stepInstruction: string, photos: Buffer[], reference?: Buffer | null): Promise<{ verdict: "correct" | "incorrect" | "could_not_check"; correctionText: string; marks: Array<{ x: number; y: number; r: number; n: number }>; issues?: any[]; checks?: any[]; bestPhoto?: number; sent: { mode: string; referenceIncluded: boolean; photoCount: number } }> {
+export async function validatePose(stepInstruction: string, photos: Buffer[], reference?: Buffer | null, photoLabels: string[] = []): Promise<{ verdict: "correct" | "incorrect" | "could_not_check"; correctionText: string; marks: Array<{ x: number; y: number; r: number; n: number }>; issues?: any[]; checks?: any[]; bestPhoto?: number; sent: { mode: string; referenceIncluded: boolean; photoCount: number } }> {
   const sentInfo = (mode: string, n: number) => ({ mode, referenceIncluded: !!(reference && reference.length), photoCount: n });
   if (!photos.length) return { verdict: "could_not_check", correctionText: "Could not check this step — no photo was captured.", marks: [], sent: sentInfo("none", 0) };
   if (providerFor("text") !== "mock") {
+    const keep = photos.map((p) => p.length > 0);
+    photoLabels = photoLabels.filter((_, k) => keep[k]);
     photos = photos.filter((p) => p.length > 0);
     if (!photos.length) return { verdict: "could_not_check", correctionText: "Could not check this step — no usable photo was captured.", marks: [], sent: sentInfo("none", 0) };
     const t0 = Date.now();
@@ -202,21 +279,31 @@ export async function validatePose(stepInstruction: string, photos: Buffer[], re
       const hasRef = !!(reference && reference.length);
       const prompt = `You are a kind, practical yoga teacher checking ONE step of a pose.
 Step instruction: "${stepInstruction}"
-${hasRef ? "Image 1 is the REFERENCE: the target pose drawn as a character. Images 2.. are photos of the real student holding the pose (one photo per camera angle, all taken at the same moment)." : "The image is a photo of the real student holding the pose."}
+${hasRef ? "Image 1 is the REFERENCE: the target pose drawn as a character." : ""}
+${photos.length > 1
+  ? `The student was photographed by ${photos.length} cameras at the SAME moment, so the photos show ONE pose from different angles. They follow the reference image in exactly this order:\n${photos.map((_, k) => `- Student photo ${k + 1}: ${photoLabels[k] || "camera " + (k + 1)} camera`).join("\n")}\nFirst, for each photo work out which way it views the student (front, side, back or three-quarter). Cameras are placed by the student, so judge the angle from the photo itself. Different angles reveal different things: a front view shows left/right symmetry, hand and arm spread, and whether the body is centred; a side view shows how high a lifted foot or knee is, spine and hip alignment, and arm height or direction. A body part hidden behind the body in one photo is often clearly visible in another.`
+  : `${hasRef ? "Image 2 is" : "The image is"} a photo of the real student holding the pose.`}
 How to judge (follow in order):
 1. Split the instruction into its separate body-position requirements (e.g. "lying on back", "knees bent", "feet flat hip-width apart", "palms beside ears", "elbows bent", "hips lifted"). Every sentence/clause that names a position is one requirement.
-2. For EACH requirement look at the student photos and mark it: "met", "not_met" (visibly different or missing), or "unseen" (cannot be seen in any photo).
-3. The student is a real human photographed; the reference is a drawing. Compare body POSITION only, never looks. Be tolerant of exact angles, small asymmetry, foot turn-out of a few degrees, hand spacing, clothing, background, camera angle, image quality.
-4. Be strict about WHERE limbs are: if the instruction says hands/palms beside ears and the hands are on the floor by the hips, resting on the body, or anywhere else, that is "not_met". Never skip a requirement because other parts look right.
-5. Use the photo where the pose is clearest. If any photo clearly shows a requirement met, it is "met".
-6. verdict = "incorrect" if ANY requirement is "not_met". "unseen" does not make it incorrect, but mention it in the correction. Otherwise "correct".
+2. For EACH requirement look at the student photos and mark it: "met", "minor" (right idea, small deviation), "not_met" (clearly different or missing), or "unseen" (cannot be seen in any photo).
+3. The student is a real human photographed; the reference is a drawing. Compare body POSITION only, never looks. Be tolerant of exact angles, small asymmetry, foot turn-out, hand spacing, slightly bent elbows, arms resting a little away from the body, clothing, background, camera angle, image quality.
+4. "not_met" is ONLY for a clear, large difference in WHERE a limb is: e.g. hands on the floor instead of overhead, a foot on the floor instead of lifted, feet apart when they should touch. Judge the main intent of each requirement ("palms joined overhead" is met even if the elbows are slightly bent; "arms relaxed by sides" is met if the arms hang or rest loosely).
+5. Raised-foot height (tree pose etc.) is hard to judge from one webcam photo, so use this rule. Compare the raised foot to the KNEE of the standing leg:
+   - sole at or above the standing knee, on the thigh, or no more than about a hand's width below the knee = "met" (or "minor" if you are unsure). Do NOT fail a foot that looks mid-thigh or knee-high, even if it could be a little higher.
+   - sole clearly well below the knee (on the calf, shin or ankle, far lower than the knee), or on the floor = "not_met" (tell them to lift it up toward the inner thigh).
+   - pressed directly on the knee joint itself = "minor" with a tip to slide it above or below the joint.
+   When the foot is between these (hard to tell), choose "minor". Other fine details (exact hand height, exact angles) are "minor" too.
+   The same applies to ANY contact-or-gap question (head, hips, heels, knees, hands "off the floor" or "touching"): you need to SEE a clear gap or clear contact. A gap of a few centimetres is invisible from a webcam, and a body part is often hidden behind an arm or the torso. If the part is hidden, or the gap/contact is not clearly visible in ANY photo, mark it "unseen" (or "minor" if it only looks slightly different). Use "not_met" only when a photo clearly shows the opposite (for example the head plainly resting on the mat when it must be lifted). Never write a note like "on or touching" as a reason for not_met: if you are unsure, it is not "not_met". Cameras at floor level are the best view for gaps under the body.
+6. Use ALL the photos together. For each requirement decide from the angle that shows it best. If the photos disagree (one shows it met, another not_met), explain the difference and decide by this rule: trust the photo that views that body part most clearly (not hidden or foreshortened); if both view it equally clearly and one shows a clear fault, it is "not_met"; if the fault only appears in a photo where the part is hidden or hard to see, it is "met" or "minor". Mention a disagreement in that check's note (e.g. "side photo: foot above knee; front photo: hidden").
+7. verdict = "incorrect" ONLY if some requirement is "not_met". "minor" and "unseen" do not make it incorrect; mention a minor point as an optional tip. When in doubt between "minor" and "not_met", choose "minor".
 Reply with JSON only, no prose:
-{"checks":[{"requirement":"short phrase","status":"met"|"not_met"|"unseen","note":"what you see, max 12 words"}],
+{"checks":[{"requirement":"short phrase","status":"met"|"minor"|"not_met"|"unseen","note":"what you see, max 12 words"}],
  "verdict":"correct"|"incorrect",
- "correction":"plain sentences; for each not_met requirement write its number then the fix, e.g. \"(1) Turn your hands so fingertips point back toward your shoulders. (2) Lift your head off the floor.\" The numbers must match issues[].n. If correct, one short encouragement with no numbers",
- "bestPhoto":<number of the student photo you used, 1 = first student photo>,
+ "correction":"plain sentences; for each not_met requirement write its number then the fix, e.g. \"(1) Turn your hands so fingertips point back toward your shoulders. (2) Lift your head off the floor.\" The numbers must match issues[].n. If correct, one short encouragement (add a gentle tip for any minor point), no numbers",
+ "views":[{"photo":1,"view":"front"|"left side"|"right side"|"back"|"three-quarter"}],
+ "bestPhoto":<number of the student photo that shows the most important problem (or the clearest view if correct), 1 = first student photo>,
  "issues":[{"n":1,"part":"e.g. both palms","problem":"what is wrong, max 8 words","ref":{"x":0.0,"y":0.0,"r":0.08},"photo":{"x":0.0,"y":0.0,"r":0.08}}]}
-One issue per not_met requirement, numbered 1,2,3 in order, at most 3 (merge or pick the most important if more). issues is empty when correct. ref = location on the REFERENCE image, photo = the same body part on the student photo you chose; x,y,r are 0..1 relative to that image (r = radius as fraction of width).`;
+One issue per not_met requirement (never for minor), numbered 1,2,3 in order, at most 3 (merge or pick the most important if more). issues is empty when correct. ref = location on the REFERENCE image, photo = the same body part on the student photo you chose; x,y,r are 0..1 relative to that image (r = radius as fraction of width).`;
       const parts: any[] = [{ text: prompt }];
       if (hasRef) parts.push({ image: `data:image/png;base64,${reference!.toString("base64")}` });
       for (const p of photos.slice(0, 6)) parts.push({ image: `data:image/jpeg;base64,${p.toString("base64")}` });

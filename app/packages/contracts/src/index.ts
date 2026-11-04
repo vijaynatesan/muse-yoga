@@ -1,9 +1,9 @@
 // Shared WS/API contracts (design §6.1). Runtime validators are hand-rolled to
 // keep the schema check explicit: clients can never fabricate server events.
-export type ClientMsgType = "join" | "claimPrimary" | "switchPrimary" | "enableState" | "demoControl" | "readyClicked" | "frameState" | "captureBlob" | "voiceText" | "promptDone" | "rtc" | "ping" | "endSession" | "startDemo" | "beginStep" | "setFraming";
-export type ServerMsgType = "state" | "roleChanged" | "captureAt" | "count" | "demoStep" | "voiceWindow" | "voiceDecision" | "deviceOffline" | "framing" | "analysing" | "results" | "error" | "pong" | "rtc" | "job" | "spoken";
+export type ClientMsgType = "join" | "claimPrimary" | "switchPrimary" | "enableState" | "demoControl" | "readyClicked" | "frameState" | "captureBlob" | "voiceText" | "promptDone" | "rtc" | "ping" | "endSession" | "startDemo" | "beginStep" | "setFraming" | "skelFrame";
+export type ServerMsgType = "state" | "roleChanged" | "captureAt" | "count" | "demoStep" | "voiceWindow" | "voiceDecision" | "deviceOffline" | "framing" | "analysing" | "results" | "error" | "pong" | "rtc" | "job" | "spoken" | "skel";
 
-const CLIENT_TYPES = new Set<string>(["join","claimPrimary","switchPrimary","enableState","demoControl","readyClicked","frameState","captureBlob","voiceText","promptDone","rtc","ping","endSession","startDemo","beginStep","setFraming"]);
+const CLIENT_TYPES = new Set<string>(["join","claimPrimary","switchPrimary","enableState","demoControl","readyClicked","frameState","captureBlob","voiceText","promptDone","rtc","ping","endSession","startDemo","beginStep","setFraming","skelFrame"]);
 
 export function validateClientMessage(raw: unknown): { ok: true; msg: Record<string, unknown> } | { ok: false; error: string } {
   if (!raw || typeof raw !== "object") return { ok: false, error: "Message must be an object" };

@@ -162,7 +162,7 @@ export function intentCheckHeuristic(feedback: string): { ok: boolean; reason: s
 }
 
 // ---------- session.rules ----------
-export const CAPTURE_LEAD_MS = 1200;
+export const CAPTURE_LEAD_MS = 400;
 export const CAPTURES_PER_STEP = 3;
 export const CAPTURE_GAP_MS = 3000;
 export const COUNT_GAP_MS = 1000;
@@ -219,10 +219,10 @@ export function acceptBlockReason(steps: DraftStep[], limits: Pick<Limits, "minS
   return null;
 }
 /** Used when no AI key is configured; the AI intent judge augments it. Text must be one plausible pose instruction. */
-export function stepTextCheckHeuristic(text: string): { ok: boolean; reason: string } {
+export function stepTextCheckHeuristic(text: string, maxLen = 400): { ok: boolean; reason: string } {
   const t = (text || "").trim();
   if (t.length < 5) return { ok: false, reason: "Instruction is too short." };
-  if (t.length > 400) return { ok: false, reason: "Instruction is too long (max 400 characters)." };
+  if (t.length > maxLen) return { ok: false, reason: `Text is too long (max ${maxLen} characters).` };
   if (/\b(price|cost|buy|sell|poem|song|joke|password|http|www\.|email me|phone)\b/i.test(t)) return { ok: false, reason: "This does not look like a yoga pose instruction." };
   return { ok: true, reason: "Looks like a pose instruction." };
 }

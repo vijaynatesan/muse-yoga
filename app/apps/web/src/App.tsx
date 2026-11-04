@@ -230,10 +230,29 @@ function StepTools({ s, i, draft, run, pending }: any) {
 }
 function ImageTools({ s, draft, run, pending }: any) {
   const [adj, setAdj] = useState(s.imageNote || "");
+  const [open, setOpen] = useState(false);
   const mine = pending === s.sid;
+  const MAX = 1500;
+  const go = (note: string | undefined) => run(`/api/creation/${draft.draftId}/steps/${s.sid}/image`, "POST", note === undefined ? {} : { adjustment: note }, s.sid);
   return <div style={{ marginTop: 8 }}>
-    <input value={adj} onChange={(e) => setAdj(e.target.value)} placeholder="Adjust image, e.g. feet closer together" disabled={!!pending} />
-    <button className="btn small" style={{ marginTop: 6 }} disabled={!!pending} onClick={() => run(`/api/creation/${draft.draftId}/steps/${s.sid}/image`, "POST", { adjustment: adj }, s.sid)}>{mine ? "Regenerating… (11–35 s)" : s.imageKey ? "Regenerate image" : "Generate image"}</button>
+    {s.imageCheck && !s.imageCheck.ok && <div className="note" style={{ fontSize: 12.5, marginBottom: 6, background: "#FFF1D6", color: "#6b4600" }} role="status"><b>Automatic check:</b> this picture may still differ from your note.<ul style={{ margin: "4px 0 0 16px", padding: 0 }}>{s.imageCheck.problems.map((p: string, k: number) => <li key={k}>{p}</li>)}</ul>Add more detail in <b>Adjust image…</b> and regenerate if needed.</div>}
+    {s.imageCheck?.ok && <p style={{ fontSize: 12.5, margin: "0 0 6px", color: "#2f6b45" }}>✓ Automatic check: matches your note.</p>}
+    {s.imageNote && <p className="muted" style={{ fontSize: 12.5, margin: "0 0 6px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={s.imageNote}>Adjustment: {s.imageNote}</p>}
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <button className="btn ghost small" disabled={!!pending} onClick={() => { setAdj(s.imageNote || adj); setOpen(true); }}>✎ Adjust image…</button>
+      <button className="btn small" disabled={!!pending} onClick={() => go(undefined)}>{mine ? "Regenerating & checking… (up to ~1–2 min)" : s.imageKey ? "Regenerate image" : "Generate image"}</button>
+    </div>
+    {open && <div className="modal" onClick={() => setOpen(false)}><div className="box" onClick={(e) => e.stopPropagation()}>
+      <h3 style={{ margin: 0 }}>Adjust the image for step {s.n}</h3>
+      <p className="muted" style={{ margin: 0, fontSize: 14 }}>Describe exactly what the picture should show. This is applied as a mandatory correction when the image is regenerated.</p>
+      <textarea autoFocus rows={9} maxLength={MAX} value={adj} onChange={(e) => setAdj(e.target.value)} placeholder="e.g. Show her standing on one leg, right foot pressed high on the inner left thigh with the knee pointing out to the side, both hands joined at the chest." style={{ width: "100%", fontSize: 16, lineHeight: 1.45, resize: "vertical" }} />
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <span className="muted" style={{ fontSize: 13 }}>{adj.length} / {MAX}</span><span style={{ flex: 1 }}></span>
+        <button className="btn ghost small" onClick={() => setOpen(false)}>Cancel</button>
+        <button className="btn ghost small" disabled={!!pending} onClick={() => { setAdj(""); setOpen(false); go(""); }}>Clear note &amp; regenerate</button>
+        <button className="btn small" disabled={!!pending || !adj.trim()} onClick={() => { setOpen(false); go(adj); }}>Regenerate with this note</button>
+      </div>
+    </div></div>}
   </div>;
 }
 const badge = (st: string) => st === "stale" ? <span className="chip" style={{ background: "#FFF1D6", color: "#8a5a00" }}>Stale — regenerate</span> : st === "failed" ? <span className="chip" style={{ background: "#FBE3DE", color: "#a3361f" }}>Failed — retry</span> : st === "none" ? <span className="chip">No image yet</span> : null;
@@ -319,6 +338,8 @@ function Create({ onDone, isAdmin, editDraft, onCancel }: any) {
   </div>;
 }
 
+/** Blurred photos of one step: one per camera in newer sessions; a single photoKey in older ones. */
+const photosOf = (s: any): Array<{ label: string; key: string }> => s?.photos?.length ? s.photos : s?.photoKey ? [{ label: "Photo", key: s.photoKey }] : [];
 function History({ session, setSession }: any) {
   const [rows, setRows] = useState<any[]>([]); const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7)); const [day, setDay] = useState<string | null>(null);
   const [large, setLarge] = useState<any>(null);
@@ -358,12 +379,12 @@ function History({ session, setSession }: any) {
       </div>
     </div> : <div style={{ display: "flex", flexDirection: "column", minHeight: 0, flex: 1 }}>
       <div className="pagehead"><button className="btn light" onClick={() => setSession(null)}>← Calendar</button><div><h2 className="display">Your Results — {session.asanaName}</h2><p>{new Date(session.startedAt).toLocaleString()} · Read aloud on your Primary. No score — each step is correct, or needs a correction.</p></div></div>
-      <div className="listrows">{session.steps.map((s: any) => <button key={s.n} className="resultstep" onClick={() => setLarge(s)}><div className="step-img"><img src={`/files/${s.imageKey || s.annotatedKey}`} alt={`Step ${s.n}`} style={{ objectFit: "contain", background: "var(--soft)" }} /></div>{s.photoKey && <img className="shotthumb" src={`/files/${s.photoKey}`} alt={`Your photo, step ${s.n} (blurred)`} />}<div><div className={`verdict ${s.verdict === "correct" ? "ok" : s.verdict === "incorrect" ? "no" : "mid"}`}>{s.verdict === "correct" ? "✓" : s.verdict === "incorrect" ? "✕" : "–"} Step {s.n} — {s.verdict === "correct" ? "Correct" : s.verdict === "incorrect" ? "Needs correction" : "Could not check"}</div><p className="muted" style={{ lineHeight: 1.6, marginTop: 5 }}>{s.correctionText}</p></div>{(s.marks || []).length > 0 && <span className="chip clay" style={{ flex: "none" }}>Annotated character image</span>}<span className="tap">View large →</span></button>)}</div>
-      <div className="flowfoot"><span className="muted" style={{ fontSize: 13.5 }}>Photos are blurred (background and face) before they are saved, and only you can see them.</span><span className="sp"></span>{session.steps.some((s: any) => s.photoKey) && <button className="btn danger small" onClick={async () => { if (!window.confirm("Delete the saved photos of this session? This cannot be undone.")) return; try { await api(`/api/history/${session.id}/photos`, { method: "DELETE" }); const fresh = await api(`/api/history/${session.id}`); setSession(fresh); setRows((rs: any[]) => rs.map((x: any) => x.id === fresh.id ? { ...x, steps: fresh.steps } : x)); } catch {} }}>Delete saved photos</button>}</div>
+      <div className="listrows">{session.steps.map((s: any) => <button key={s.n} className="resultstep" onClick={() => setLarge(s)}><div className="step-img"><img src={`/files/${s.imageKey || s.annotatedKey}`} alt={`Step ${s.n}`} style={{ objectFit: "contain", background: "var(--soft)" }} /></div>{photosOf(s).map((p: any, k: number) => <span key={k} style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: "none" }}><img className="shotthumb" src={`/files/${p.key}`} alt={`${p.label} photo, step ${s.n} (blurred)`} /><span className="muted" style={{ fontSize: 11.5 }}>{p.label}</span></span>)}<div><div className={`verdict ${s.verdict === "correct" ? "ok" : s.verdict === "incorrect" ? "no" : "mid"}`}>{s.verdict === "correct" ? "✓" : s.verdict === "incorrect" ? "✕" : "–"} Step {s.n} — {s.verdict === "correct" ? "Correct" : s.verdict === "incorrect" ? "Needs correction" : "Could not check"}</div><p className="muted" style={{ lineHeight: 1.6, marginTop: 5 }}>{s.correctionText}</p></div>{(s.marks || []).length > 0 && <span className="chip clay" style={{ flex: "none" }}>Annotated character image</span>}<span className="tap">View large →</span></button>)}</div>
+      <div className="flowfoot"><span className="muted" style={{ fontSize: 13.5 }}>Photos are blurred (background and face) before they are saved, and only you can see them.</span><span className="sp"></span>{session.steps.some((s: any) => photosOf(s).length) && <button className="btn danger small" onClick={async () => { if (!window.confirm("Delete the saved photos of this session? This cannot be undone.")) return; try { await api(`/api/history/${session.id}/photos`, { method: "DELETE" }); const fresh = await api(`/api/history/${session.id}`); setSession(fresh); setRows((rs: any[]) => rs.map((x: any) => x.id === fresh.id ? { ...x, steps: fresh.steps } : x)); } catch {} }}>Delete saved photos</button>}</div>
     </div>}
     {large && session && <div className="modal" onClick={() => setLarge(null)}><div className="box" onClick={(e) => e.stopPropagation()}>
       <h3 className="display">Step {large.n} — {large.verdict === "correct" ? "Correct" : large.verdict === "incorrect" ? "Needs correction" : "Could not check"}</h3>
-      <div className="bigpair"><MarkedImage src={`/files/${large.imageKey || large.annotatedKey}`} marks={large.marks} alt="Annotated character image" />{large.photoKey && <figure className="shotfig"><img src={`/files/${large.photoKey}`} alt={`Your photo, step ${large.n} (blurred)`} /><figcaption>Your photo — background and face blurred</figcaption></figure>}</div>
+      <div className="bigpair"><MarkedImage src={`/files/${large.imageKey || large.annotatedKey}`} marks={large.marks} alt="Annotated character image" />{photosOf(large).map((p: any, k: number) => <figure className="shotfig" key={k}><img src={`/files/${p.key}`} alt={`${p.label} photo, step ${large.n} (blurred)`} /><figcaption>{p.label} camera — background and face blurred</figcaption></figure>)}</div>
       <p>{large.correctionText}</p>
       <p className="muted" style={{ fontSize: 12.5 }}>Numbered circles are drawn on the stored character image. Your photo is blurred (background and face) before it is saved; only you can see it.</p>
       <div className="flowfoot"><button className="btn ghost small" disabled={large.n <= 1} onClick={() => setLarge(session.steps[large.n - 2])}>← Prev step</button><button className="btn ghost small" disabled={large.n >= session.steps.length} onClick={() => setLarge(session.steps[large.n])}>Next step →</button><span className="sp"></span><button className="btn small" onClick={() => setLarge(null)}>Close</button></div>

@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import { loadStore, getDb, save, id, now, hashCode, tokenHash, newToken, audit, logAiCall, OBJECTS_DIR, APP_ROOT, MAIL_DIR } from "./store.js";
 import { sendOtpEmail } from "./mailer.js";
-import { generateSteps, generateStepImage, judgeIntent, judgeAlignment, judgeStepText, aiErrorMessage, transcribeOneShot, aiMode } from "./ai.js";
+import { generateSteps, generateStepImage, judgeIntent, judgeAlignment, judgeStepText, buildPoseBrief, critiqueStepImage, aiErrorMessage, transcribeOneShot, aiMode } from "./ai.js";
 import { createRoom, rooms, handleWsMessage, onDeviceDisconnect, broadcast, snapshot } from "./session.js";
 import { normalizeName, nameMatches, decideRegOtp, onLoginFail, admitDevice, transitionAsana, canPractise, feedbackAllowed, matchReady, DEFAULT_LIMITS, canDeleteStep, canAddStep, deleteStepAt, insertStepAfter, moveStep, acceptBlockReason } from "@muse/domain";
 
@@ -252,23 +252,41 @@ app.get("/api/reference/check", async (req: any, reply) => { const u = requireUs
 // ---------------- creation + feedback
 function draftKey(jobId: string, n: number) { return `drafts/${jobId}/step-${n}.png`; }
 // Draft steps carry a stable id (sid) so edit/delete/move/image calls never depend on positions that shift.
-function withSids(gen: any) { gen.steps = gen.steps.map((st: any) => ({ sid: st.sid || `s_${id()}`, instruction: st.instruction, pose: st.pose, durationS: st.durationS, imageKey: st.imageKey, imageStatus: st.imageStatus || "none", imageNote: st.imageNote })); return gen; }
+function withSids(gen: any) { gen.steps = gen.steps.map((st: any) => ({ sid: st.sid || `s_${id()}`, instruction: st.instruction, pose: st.pose, durationS: st.durationS, imageKey: st.imageKey, imageStatus: st.imageStatus || "none", imageNote: st.imageNote, imageCheck: st.imageCheck })); return gen; }
 function draftView(job: any) {
   const g = withSids(job.payload.gen), lim = limits();
   return { draftId: job.id, editOf: job.payload.editOf || null, name: job.payload.name, characterId: job.payload.characterId, difficulty: g.difficulty, bodyPart: g.bodyPart, category: g.category, benefits: g.benefits, contraindications: g.contraindications,
-    steps: g.steps.map((st: any, i: number) => ({ n: i + 1, sid: st.sid, instruction: st.instruction, durationS: st.durationS, imageKey: st.imageKey || null, imageStatus: st.imageStatus, imageNote: st.imageNote || "" })),
+    steps: g.steps.map((st: any, i: number) => ({ n: i + 1, sid: st.sid, instruction: st.instruction, durationS: st.durationS, imageKey: st.imageKey || null, imageStatus: st.imageStatus, imageNote: st.imageNote || "", imageCheck: st.imageCheck || null })),
     limits: { minSteps: lim.minSteps, maxSteps: lim.maxSteps }, blocked: acceptBlockReason(g.steps, lim) };
 }
 function dropObject(key?: string) { if (key && key.startsWith("drafts/")) { try { unlinkSync(join(OBJECTS_DIR, key)); } catch { /* already gone */ } } }
 /** Image for ONE step: images/edits only, gate + up to 3 attempts (same as bulk generation). */
 async function renderStepImage(job: any, step: any, position: number) {
   const char = getDb().characters.find((c: any) => c.id === job.payload.characterId);
-  const instr = step.imageNote ? `${step.instruction}. Additional adjustment from the admin: ${step.imageNote}` : step.instruction;
+  const instr = step.instruction;   // the editor's adjustment travels separately (ctx.adjustment) so it is a prominent, mandatory part of the prompt
   const allSteps = job.payload.gen.steps as any[]; const idx = allSteps.findIndex((x: any) => x.sid === step.sid);
-  const ctx = { pose: step.pose as string | undefined, total: allSteps.length, previous: (idx > 0 ? allSteps.slice(0, idx) : []).map((x: any) => String(x.instruction)) };   // earlier steps: poses carry forward
-  let r: Awaited<ReturnType<typeof generateStepImage>> | null = null; let lastErr: any = null;
-  for (let attempt = 1; attempt <= 3 && !r; attempt++) { try { r = await generateStepImage(instr, char!.imageKey, position, attempt, ctx); } catch (e: any) { lastErr = e; } }
-  if (!r) throw lastErr || new Error("image generation failed");
+  let currentImage: Buffer | undefined; try { if (step.imageNote && step.imageKey) currentImage = readFileSync(join(OBJECTS_DIR, step.imageKey)); } catch { /* no current picture to attach */ }
+  const ctx = { adjustment: step.imageNote as string | undefined, currentImage, asanaName: job.payload.name as string | undefined, allSteps: allSteps.map((x: any) => String(x.instruction)), pose: step.pose as string | undefined, total: allSteps.length, previous: (idx > 0 ? allSteps.slice(0, idx) : []).map((x: any) => String(x.instruction)) };   // earlier steps: poses carry forward
+  const adjusted = !!step.imageNote;
+  // Edits with a note: (1) turn text+note into an unambiguous drawing brief + checklist, (2) generate, (3) a vision model checks the checklist,
+  // (4) on failure regenerate with the reviewer's problems and the rejected attempt attached. Up to 3 rounds; the best one is kept.
+  const brief = adjusted ? await buildPoseBrief(job.payload.name, ctx.allSteps, position, instr, step.imageNote).catch(() => null) : null;
+  const ROUNDS = adjusted && brief ? 3 : 1;
+  let best: { r: Awaited<ReturnType<typeof generateStepImage>>; check: { ok: boolean; problems: string[] } | null } | null = null; let lastErr: any = null;
+  let feedback: string[] = [], current = currentImage;
+  for (let round = 1; round <= ROUNDS; round++) {
+    let r: Awaited<ReturnType<typeof generateStepImage>> | null = null;
+    for (let attempt = 1; attempt <= 3 && !r; attempt++) { try { r = await generateStepImage(instr, char!.imageKey, position, attempt, { ...ctx, brief, feedback, currentImage: current, refining: round > 1 }); } catch (e: any) { lastErr = e; } }
+    if (!r) break;
+    const check = brief && r.bytes ? await critiqueStepImage(r.bytes, instr, step.imageNote, brief.mustShow) : null;
+    if (!best || (check && (!best.check || check.problems.length < best.check.problems.length))) best = { r, check };
+    if (!check || check.ok) { if (check?.ok) best = { r, check }; break; }
+    feedback = check.problems; current = r.bytes;
+  }
+  if (!best) throw lastErr || new Error("image generation failed");
+  const r = best.r;
+  step.imageCheck = best.check ? { ok: best.check.ok, problems: best.check.problems } : undefined;
+  if (brief) step.pose = brief.brief;
   const key = `drafts/${job.id}/${step.sid}-${Date.now().toString(36)}.png`;           // new key per render so browsers never show a cached old image
   const dst = join(OBJECTS_DIR, key); mkdirSync(dirname(dst), { recursive: true });
   if (r.bytes) writeFileSync(dst, r.bytes); else copyFileSync(join(OBJECTS_DIR, char!.imageKey), dst);
@@ -380,7 +398,7 @@ app.post("/api/creation/:draftId/steps/:sid/image", async (req: any, reply) => {
   const i = steps.findIndex((x: any) => x.sid === req.params.sid); if (i < 0) return reply.code(404).send({ error: "Step not found" });
   if (throttled(`regen:${u.id}`, 60, 3600000)) return reply.code(429).send({ error: "Too many image requests. Please wait." });
   const adj = req.body?.adjustment === undefined ? undefined : String(req.body.adjustment).trim();
-  if (adj) { const j = await judgeStepText(adj); if (!j.ok) return reply.code(400).send({ error: j.reason, stage: "intent" }); steps[i].imageNote = adj.slice(0, 300); }
+  if (adj) { const j = await judgeStepText(adj, 1500); if (!j.ok) return reply.code(400).send({ error: j.reason, stage: "intent" }); steps[i].imageNote = adj.slice(0, 1500); }
   else if (adj === "") steps[i].imageNote = undefined;                                       // empty adjustment clears the saved note
   try { await renderStepImage(job, steps[i], i + 1); }
   catch (e: any) { steps[i].imageStatus = "failed"; save(); return reply.code(502).send({ error: `Step ${i + 1} image failed: ${e.message}`, draft: draftView(job) }); }
@@ -529,10 +547,17 @@ app.post("/api/history/:sid/photos/:step", async (req: any, reply) => {
   if (!m) return reply.code(400).send({ error: "A JPEG image is required." });
   const buf = Buffer.from(m[1], "base64");
   if (buf.length < 500 || buf.length > 400 * 1024 || buf[0] !== 0xff || buf[1] !== 0xd8) return reply.code(400).send({ error: "Invalid or oversized image." });
-  const key = `practice-photos/${u.id}/${s.id}/step-${n}.jpg`;
+  // One photo per camera/device (a 2-3 device session has several photos per step): keyed by a sanitized device slot.
+  const slot = String(req.body?.slot || "main").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 16) || "main";
+  const label = String(req.body?.label || "Camera").replace(/[^\w \-]/g, "").trim().slice(0, 20) || "Camera";
+  const st = s.steps[n - 1]; const others = (st.photos || []).filter((p: any) => p.slot !== slot);
+  if (others.length >= 3) return reply.code(400).send({ error: "At most 3 photos per step." });
+  const key = `practice-photos/${u.id}/${s.id}/step-${n}-${slot}.jpg`;
   mkdirSync(join(OBJECTS_DIR, `practice-photos/${u.id}/${s.id}`), { recursive: true });
   writeFileSync(join(OBJECTS_DIR, key), buf);
-  s.steps[n - 1].photoKey = key; audit(u.email, "history.photo.add", s.id, { step: n, bytes: buf.length }); save();
+  st.photos = [...others, { slot, label, key, primary: !!req.body?.primary }].sort((x: any, y: any) => Number(y.primary) - Number(x.primary));
+  st.photoKey = st.photos[0].key;                                                              // main (Primary) photo, kept for older clients and sessions
+  audit(u.email, "history.photo.add", s.id, { step: n, bytes: buf.length, slot }); save();
   return { ok: true, photoKey: key };
 });
 app.delete("/api/history/:sid/photos", async (req: any, reply) => {
@@ -540,7 +565,11 @@ app.delete("/api/history/:sid/photos", async (req: any, reply) => {
   const s = getDb().practiceSessions.find((x: any) => x.id === req.params.sid && x.userId === u.id);
   if (!s) return reply.code(404).send({ error: "Not found" });
   let removed = 0;
-  for (const st of s.steps) if (st.photoKey) { try { unlinkSync(join(OBJECTS_DIR, st.photoKey)); } catch { /* already gone */ } delete st.photoKey; removed++; }
+  for (const st of s.steps) {
+    const keys = new Set<string>([...(st.photos || []).map((p: any) => p.key), ...(st.photoKey ? [st.photoKey] : [])]);
+    for (const k of keys) { try { unlinkSync(join(OBJECTS_DIR, k)); } catch { /* already gone */ } removed++; }
+    delete st.photoKey; delete st.photos;
+  }
   audit(u.email, "history.photo.delete", s.id, { removed }); save();
   return { ok: true, removed };
 });
